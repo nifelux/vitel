@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — Recharge</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    .balance-pill {
+      background: var(--purple-light); border-radius: 30px; padding: 10px 16px;
+      text-align: center; margin: 16px; font-size: 13px; color: var(--purple); font-weight: 600;
+    }
+    .amount-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; padding: 0 16px; }
+    .amt-chip {
+      background: var(--card); border: 2px solid var(--border); border-radius: var(--radius-sm);
+      padding: 14px 6px; text-align: center; cursor: pointer; transition: all .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .amt-chip.on { background: var(--purple); border-color: var(--purple); color: #fff; }
+    .amt-chip .amt-val { font-size: 14px; font-weight: 700; }
+
+    .method-card {
+      margin: 16px; background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+    .method-badge {
+      padding: 6px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .mb-manual   { background: #FEF3C7; color: #92400E; }
+    .mb-paystack { background: #D1FAE5; color: #065F46; }
+    .mb-ipayng   { background: var(--purple-light); color: var(--purple); }
+
+    .transfer-info { padding: 16px; }
+    .ti-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .ti-row:last-of-type { border-bottom: none; }
+    .ti-label { font-size: 12px; color: var(--muted); }
+    .ti-val   { font-size: 14px; font-weight: 700; color: var(--text); }
+    .copy-btn { padding: 4px 10px; border-radius: 6px; background: var(--purple-light); color: var(--purple); font-size: 11px; font-weight: 700; border: none; cursor: pointer; margin-left: 6px; }
+
+    .narration-box {
+      background: linear-gradient(135deg, var(--purple-light), var(--sky-light));
+      border-radius: var(--radius-sm); padding: 14px 16px; margin: 0 16px; text-align: center;
+    }
+    .nar-label { font-size: 11px; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: .06em; }
+    .nar-code  { font-size: 22px; font-weight: 800; color: var(--purple); letter-spacing: .1em; margin: 6px 0; }
+    .nar-hint  { font-size: 11px; color: var(--muted); }
+
+    .status-bar { margin: 12px 16px 0; padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; display: none; }
+    .status-bar.show { display: block; }
+    .sb-pending { background: #D1FAE5; color: #065F46; }
+    .sb-success { background: #D1FAE5; color: #065F46; }
+    .sb-failed  { background: #FEE2E2; color: #991B1B; }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+
+<div class="page-wrap">
+  <div class="topbar">
+    <a class="back-btn" href="dashboard.html">‹</a>
+    <span class="topbar-title">💰 Recharge Wallet</span>
+    <div></div>
+  </div>
+
+  <div class="balance-pill">Your Balance: <strong id="walBal">₦0.00</strong></div>
+
+  <div class="slabel" style="padding:0 16px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Select Amount</div>
+  <div class="amount-grid">
+    <div class="amt-chip" data-v="500" onclick="pickAmt(this)"><div class="amt-val">₦500</div></div>
+    <div class="amt-chip" data-v="1000" onclick="pickAmt(this)"><div class="amt-val">₦1,000</div></div>
+    <div class="amt-chip" data-v="2000" onclick="pickAmt(this)"><div class="amt-val">₦2,000</div></div>
+    <div class="amt-chip" data-v="5000" onclick="pickAmt(this)"><div class="amt-val">₦5,000</div></div>
+    <div class="amt-chip" data-v="10000" onclick="pickAmt(this)"><div class="amt-val">₦10,000</div></div>
+    <div class="amt-chip" data-v="20000" onclick="pickAmt(this)"><div class="amt-val">₦20,000</div></div>
+  </div>
+
+  <div style="padding:12px 16px 0">
+    <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Or enter custom amount</label>
+    <input class="field-input" type="number" id="customAmt" placeholder="Enter amount (min ₦500)" oninput="onCustomAmt(this.value)" />
+  </div>
+
+  <div class="method-card" style="margin-top:16px">
+    <div id="methodBadge" class="method-badge mb-manual">🏦 Manual Bank Transfer</div>
+    <div id="methodContent">
+      <div class="transfer-info">
+        <div class="ti-row"><span class="ti-label">Bank</span><span class="ti-val">OPay</span></div>
+        <div class="ti-row">
+          <span class="ti-label">Account Number</span>
+          <span><span class="ti-val" id="acctNo">6556493720</span><button class="copy-btn" onclick="cp('acctNo')">COPY</button></span>
+        </div>
+        <div class="ti-row"><span class="ti-label">Account Name</span><span class="ti-val">OLUWANIFEMI ABDULLAHI OLUDE</span></div>
+        <div class="ti-row">
+          <span class="ti-label">Amount</span>
+          <span><span class="ti-val" id="ti-amt">—</span><button class="copy-btn" id="tiAmtCopy" onclick="cp('ti-amt')" style="display:none">COPY</button></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="narration-box" id="narrationBox" style="display:none">
+    <div class="nar-label">⚠️ Use this narration / description</div>
+    <div class="nar-code" id="narCode">—</div>
+    <button class="copy-btn" style="margin-top:4px;padding:6px 14px;font-size:12px" onclick="cp('narCode')">COPY NARRATION</button>
+    <p class="nar-hint" style="margin-top:6px">Include this code in your bank transfer description</p>
+  </div>
+
+  <div class="status-bar" id="statusBar"></div>
+
+  <div style="padding:16px">
+    <button class="btn btn-primary" id="rechBtn" disabled>Continue</button>
+  </div>
+
+  <div style="margin:0 16px;background:var(--sky-light);border-radius:var(--radius-sm);padding:14px">
+    <div style="font-size:11px;font-weight:700;color:var(--sky-dark);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">ℹ️ Important</div>
+    <ul style="list-style:none;display:flex;flex-direction:column;gap:5px">
+      <li style="font-size:12px;color:var(--sky-dark);padding-left:12px;position:relative">
+        <span style="position:absolute;left:0">•</span>Minimum deposit: ₦500
+      </li>
+      <li style="font-size:12px;color:var(--sky-dark);padding-left:12px;position:relative">
+        <span style="position:absolute;left:0">•</span>Transfer the exact amount shown
+      </li>
+      <li style="font-size:12px;color:var(--sky-dark);padding-left:12px;position:relative">
+        <span style="position:absolute;left:0">•</span>Use the narration code for faster approval
+      </li>
+      <li style="font-size:12px;color:var(--sky-dark);padding-left:12px;position:relative">
+        <span style="position:absolute;left:0">•</span>Approval takes 5–30 minutes
+      </li>
+    </ul>
+  </div>
+  <div style="height:20px"></div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script src="https://js.paystack.co/v1/inline.js" defer></script>
+<script>
+(function(){
+  var selAmt=0, userId="", userEmail="", activeMethod="manual", pollT=null, currentRef="";
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+
+  waitSb(async function(){
+    var s=await window.VitelAuth.requireAuth(); if(!s)return;
+    userId=s.user.id; userEmail=s.user.email;
+    var {data:w}=await window.sb.from("wallets").select("balance").eq("user_id",userId).single();
+    document.getElementById("walBal").textContent=window.VitelAuth.money(w?.balance||0);
+
+    // Load active method
+    try{
+      var r=await fetch("/api/deposit?action=method");
+      var d=await r.json();
+      activeMethod=d.method||"manual";
+      applyMethod(activeMethod);
+    }catch(e){applyMethod("manual");}
+
+    document.getElementById("rechBtn").addEventListener("click", handleRecharge);
+  });
+
+  function applyMethod(m){
+    var badge=document.getElementById("methodBadge");
+    if(m==="paystack"){ badge.className="method-badge mb-paystack"; badge.textContent="✅ Paystack — Card & Bank"; }
+    else if(m==="ipayng"){ badge.className="method-badge mb-ipayng"; badge.textContent="⚡ iPayNG Transfer"; }
+    else { badge.className="method-badge mb-manual"; badge.textContent="🏦 Manual Bank Transfer"; }
+  }
+
+  window.pickAmt=function(el){
+    document.querySelectorAll(".amt-chip").forEach(function(c){c.classList.remove("on");});
+    el.classList.add("on");
+    document.getElementById("customAmt").value="";
+    selAmt=Number(el.dataset.v);
+    updateAmtDisplay();
+    document.getElementById("rechBtn").disabled=false;
+  };
+
+  window.onCustomAmt=function(v){
+    document.querySelectorAll(".amt-chip").forEach(function(c){c.classList.remove("on");});
+    selAmt=Number(v)||0;
+    updateAmtDisplay();
+    document.getElementById("rechBtn").disabled=selAmt<500;
+  };
+
+  function updateAmtDisplay(){
+    var el=document.getElementById("ti-amt"), cp=document.getElementById("tiAmtCopy");
+    if(selAmt>0){ el.textContent="₦"+selAmt.toLocaleString(); cp.style.display="inline"; }
+    else { el.textContent="—"; cp.style.display="none"; }
+  }
+
+  async function handleRecharge(){
+    if(!selAmt||selAmt<500){ window.VitelAuth.toast("Minimum deposit is ₦500"); return; }
+    var btn=document.getElementById("rechBtn");
+    btn.disabled=true; btn.textContent="Processing…";
+
+    if(activeMethod==="paystack"){ await doPaystack(); }
+    else { await doManual(); }
+  }
+
+  async function doManual(){
+    var btn=document.getElementById("rechBtn");
+    try{
+      var r=await fetch("/api/deposit?action=initiate-manual",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:userId,amount:selAmt})});
+      var d=await r.json();
+      if(!d.ok){ window.VitelAuth.toast(d.error||"Error"); btn.disabled=false; btn.textContent="Continue"; return; }
+      currentRef=d.reference;
+      document.getElementById("narCode").textContent=d.narration;
+      document.getElementById("narrationBox").style.display="block";
+      btn.textContent="Waiting for approval…";
+      var sb=document.getElementById("statusBar");
+      sb.className="status-bar sb-pending show";
+      sb.textContent="⏳ Transfer sent? We'll credit your wallet once approved.";
+      startPoll(currentRef,"manual");
+    }catch(e){ window.VitelAuth.toast("Network error"); btn.disabled=false; btn.textContent="Continue"; }
+  }
+
+  async function doPaystack(){
+    var btn=document.getElementById("rechBtn");
+    try{
+      var r=await fetch("/api/deposit?action=initiate-paystack",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:userId,amount:selAmt,email:userEmail})});
+      var d=await r.json();
+      if(!d.ok){ window.VitelAuth.toast(d.error||"Error"); btn.disabled=false; btn.textContent="Continue"; return; }
+      currentRef=d.reference;
+      var handler=PaystackPop.setup({
+        key:d.public_key, email:userEmail, amount:selAmt*100, ref:currentRef, currency:"NGN",
+        onSuccess:function(){
+          var sb=document.getElementById("statusBar");
+          sb.className="status-bar sb-pending show";
+          sb.textContent="⏳ Payment received. Confirming…";
+          btn.textContent="Confirming…";
+          startPoll(currentRef,"paystack");
+        },
+        onCancel:function(){ btn.disabled=false; btn.textContent="Continue"; }
+      });
+      handler.openIframe();
+    }catch(e){ window.VitelAuth.toast("Network error"); btn.disabled=false; btn.textContent="Continue"; }
+  }
+
+  function startPoll(ref,src){
+    clearInterval(pollT);
+    pollT=setInterval(async function(){
+      try{
+        var r=await fetch("/api/deposit?action=status&ref="+ref);
+        var d=await r.json();
+        var sb=document.getElementById("statusBar");
+        if(d.status==="completed"){
+          clearInterval(pollT);
+          sb.className="status-bar sb-success show";
+          sb.textContent="✅ Wallet credited successfully! Redirecting…";
+          setTimeout(function(){location.href="/dashboard.html";},2000);
+        }
+        if(d.status==="rejected"){
+          clearInterval(pollT);
+          sb.className="status-bar sb-failed show";
+          sb.textContent="❌ Deposit rejected. Please contact support.";
+        }
+      }catch(e){console.warn(e);}
+    },6000);
+  }
+
+  window.cp=function(id){
+    var t=document.getElementById(id).textContent.trim();
+    navigator.clipboard.writeText(t).then(function(){window.VitelAuth.toast("Copied!");});
+  };
+})();
+</script>
+</body>
+  </html>
+  
