@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — Withdrawal History</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    .dep-status { padding:3px 9px; border-radius:20px; font-size:10px; font-weight:700; }
+    .s-pending  { background:#FEF3C7; color:#92400E; }
+    .s-approved { background:#D1FAE5; color:#065F46; }
+    .s-rejected { background:#FEE2E2; color:#991B1B; }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+<div class="page-wrap">
+  <div class="topbar">
+    <a class="back-btn" href="profile.html">‹</a>
+    <span class="topbar-title">📤 Withdrawal History</span>
+    <div></div>
+  </div>
+  <div class="card" style="margin:16px;overflow:hidden" id="histList">
+    <div class="loader-wrap"><div class="loader"></div></div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script>
+(function(){
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+  waitSb(async function(){
+    var s=await window.VitelAuth.requireAuth(); if(!s)return;
+    var r=await fetch("/api/withdraw?user_id="+s.user.id);
+    var d=await r.json();
+    var ws=d.withdrawals||[];
+    var el=document.getElementById("histList");
+    if(!ws.length){ el.innerHTML='<div class="empty"><div class="empty-icon">📤</div><p>No withdrawals yet.</p></div>'; return; }
+    el.innerHTML=ws.map(function(w){
+      var sc="s-"+(w.status||"pending");
+      return '<div class="list-item">'+
+        '<div class="li-left">'+
+          '<div class="li-title">'+w.bank_name+' <span class="dep-status '+sc+'">'+w.status+'</span></div>'+
+          '<div class="li-sub">'+w.account_number+' · '+w.account_name+'</div>'+
+          '<div class="li-sub">'+new Date(w.created_at).toLocaleString()+'</div>'+
+        '</div>'+
+        '<div class="li-right"><div class="li-amount debit">-'+window.VitelAuth.money(w.amount)+'</div></div>'+
+      '</div>';
+    }).join("");
+  });
+})();
+</script>
+</body>
+      </html>
+  
