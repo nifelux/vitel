@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — Gift Code</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    .gift-hero { background:linear-gradient(135deg,var(--purple),var(--sky)); padding:36px 24px; text-align:center; color:#fff; }
+    .gift-icon  { font-size:60px; margin-bottom:12px; }
+    .gift-input { display:flex; gap:10px; margin:20px 16px 0; }
+    .gift-input input { flex:1; padding:14px 16px; border:2px solid var(--border); border-radius:var(--radius-sm); font-size:16px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; outline:none; }
+    .gift-input input:focus { border-color:var(--purple); }
+    .gift-input button { padding:14px 20px; background:var(--purple); color:#fff; border:none; border-radius:var(--radius-sm); font-size:14px; font-weight:700; cursor:pointer; }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+<div class="page-wrap">
+  <div class="topbar"><a class="back-btn" href="profile.html">‹</a><span class="topbar-title">🎁 Gift Code</span><div></div></div>
+  <div class="gift-hero">
+    <div class="gift-icon">🎁</div>
+    <div style="font-size:20px;font-weight:800">Redeem a Gift Code</div>
+    <div style="font-size:14px;opacity:.8;margin-top:6px">Enter your code below to receive your bonus</div>
+  </div>
+  <div class="gift-input">
+    <input type="text" id="codeInput" placeholder="ENTER CODE" maxlength="20" oninput="this.value=this.value.toUpperCase()"/>
+    <button onclick="redeem()">Redeem</button>
+  </div>
+  <div id="giftAlert" class="alert" style="margin:12px 16px 0"></div>
+  <div class="section" style="margin-top:20px">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:10px">My Redemptions</h3>
+    <div class="card" id="redemptions"><div class="loader-wrap"><div class="loader"></div></div></div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script>
+(function(){
+  var uid="";
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+  waitSb(async function(){
+    var s=await window.VitelAuth.requireAuth(); if(!s)return;
+    uid=s.user.id;
+    var {data:r}=await window.sb.from("gift_code_redemptions").select("*,gift_codes(code)").eq("user_id",uid).order("created_at",{ascending:false});
+    var el=document.getElementById("redemptions");
+    if(!r||!r.length){ el.innerHTML='<div class="empty"><p>No gift codes redeemed yet.</p></div>'; return; }
+    el.innerHTML=r.map(function(x){
+      return '<div class="list-item"><div class="li-left"><div class="li-title">'+x.gift_codes?.code+'</div><div class="li-sub">'+window.VitelAuth.timeAgo(x.created_at)+'</div></div>'+
+        '<div class="li-right"><div class="li-amount credit">+'+window.VitelAuth.money(x.amount)+'</div></div></div>';
+    }).join("");
+  });
+
+  window.redeem=async function(){
+    var code=document.getElementById("codeInput").value.trim();
+    var al=document.getElementById("giftAlert");
+    if(!code){ al.textContent="Enter a gift code"; al.className="alert alert-error show"; return; }
+    al.className="alert";
+    var r=await fetch("/api/bonus?action=redeem-gift",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:uid,code})});
+    var d=await r.json();
+    if(d.ok){
+      al.textContent="🎉 Redeemed! "+window.VitelAuth.money(d.amount)+" added to your wallet.";
+      al.className="alert alert-success show";
+      document.getElementById("codeInput").value="";
+    } else {
+      al.textContent=d.error||"Invalid code";
+      al.className="alert alert-error show";
+    }
+  };
+})();
+</script>
+</body>
+  </html>
+  
