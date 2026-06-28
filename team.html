@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — My Team</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    .ref-hero {
+      background: linear-gradient(135deg, var(--purple) 0%, var(--sky) 100%);
+      padding: 24px 20px 40px; color: #fff;
+    }
+    .ref-code-box {
+      background: rgba(255,255,255,.15); border-radius: var(--radius-sm);
+      padding: 14px 16px; margin-top: 14px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .ref-code { font-size: 20px; font-weight: 800; letter-spacing: .1em; }
+    .copy-btn {
+      padding: 7px 14px; border-radius: 20px;
+      background: rgba(255,255,255,.25); color: #fff;
+      font-size: 12px; font-weight: 700; border: none; cursor: pointer;
+    }
+    .ref-link-box {
+      background: rgba(255,255,255,.1); border-radius: var(--radius-sm);
+      padding: 10px 14px; margin-top: 8px;
+      font-size: 12px; color: rgba(255,255,255,.8);
+      word-break: break-all;
+    }
+
+    .vip-progress {
+      background: var(--white); border-radius: var(--radius); margin: -20px 16px 16px;
+      padding: 16px; box-shadow: var(--shadow-md); position: relative; z-index: 5;
+    }
+    .vip-prog-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
+    .vip-tiers { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+    .vip-tier {
+      border-radius: var(--radius-sm); padding: 10px 6px; text-align: center;
+      border: 2px solid var(--border);
+    }
+    .vip-tier.unlocked { border-color: var(--purple); background: var(--purple-light); }
+    .vip-tier .vt-label { font-size: 12px; font-weight: 700; color: var(--muted); }
+    .vip-tier.unlocked .vt-label { color: var(--purple); }
+    .vip-tier .vt-req { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    .vip-tier .vt-icon { font-size: 20px; margin-bottom: 4px; }
+
+    .level-tabs { display: flex; gap: 8px; padding: 0 16px 12px; }
+    .ltab {
+      flex: 1; padding: 9px; border-radius: var(--radius-sm);
+      font-size: 12px; font-weight: 700; text-align: center;
+      border: 2px solid var(--border); background: var(--card); color: var(--muted);
+      cursor: pointer;
+    }
+    .ltab.on { background: var(--purple); border-color: var(--purple); color: #fff; }
+
+    .member-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    .member-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--purple-light); display: flex; align-items: center;
+      justify-content: center; font-size: 16px; flex-shrink: 0;
+    }
+    .member-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .member-date { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .member-status {
+      padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
+    }
+    .status-active { background: #D1FAE5; color: #065F46; }
+    .status-inactive { background: var(--bg); color: var(--muted); }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+
+<div class="page-wrap">
+  <!-- Hero -->
+  <div class="ref-hero">
+    <div style="font-size:13px;opacity:.8;margin-bottom:4px">Your Referral Code</div>
+    <div class="ref-code-box">
+      <div class="ref-code" id="refCode">—</div>
+      <button class="copy-btn" onclick="copyCode()">COPY</button>
+    </div>
+    <div class="ref-link-box" id="refLink">Loading…</div>
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button class="copy-btn" onclick="shareLink()">📤 Share Link</button>
+    </div>
+  </div>
+
+  <!-- VIP Progress -->
+  <div class="vip-progress">
+    <div class="vip-prog-title">VIP Level Progress <span id="activeRefs" style="color:var(--muted);font-weight:400;font-size:12px"></span></div>
+    <div class="vip-tiers">
+      <div class="vip-tier" id="vt1">
+        <div class="vt-icon">🥉</div>
+        <div class="vt-label">VIP 1</div>
+        <div class="vt-req">3 refs</div>
+      </div>
+      <div class="vip-tier" id="vt2">
+        <div class="vt-icon">🥈</div>
+        <div class="vt-label">VIP 2</div>
+        <div class="vt-req">5 refs</div>
+      </div>
+      <div class="vip-tier" id="vt3">
+        <div class="vt-icon">🥇</div>
+        <div class="vt-label">VIP 3</div>
+        <div class="vt-req">10 refs</div>
+      </div>
+      <div class="vip-tier" id="vt4">
+        <div class="vt-icon">💎</div>
+        <div class="vt-label">VIP 4</div>
+        <div class="vt-req">25 refs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Earnings summary -->
+  <div class="section anim anim-1">
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-val" id="totalTeam">0</div>
+        <div class="stat-lbl">Total Team</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="activeTeam">0</div>
+        <div class="stat-lbl">Active</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="refEarnings">₦0</div>
+        <div class="stat-lbl">Earned</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level tabs -->
+  <div class="level-tabs">
+    <button class="ltab on" onclick="switchLevel(this,1)">Level 1 (20%)</button>
+    <button class="ltab" onclick="switchLevel(this,2)">Level 2 (3%)</button>
+    <button class="ltab" onclick="switchLevel(this,3)">Level 3 (2%)</button>
+  </div>
+
+  <!-- Members list -->
+  <div id="membersList">
+    <div class="loader-wrap"><div class="loader"></div></div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span>Home</button>
+  <button class="nav-item" onclick="location.href='products.html'"><span class="nav-icon">📦</span>Products</button>
+  <button class="nav-item active" onclick="location.href='team.html'"><span class="nav-icon">👥</span>Team</button>
+  <button class="nav-item" onclick="location.href='profile.html'"><span class="nav-icon">👤</span>Profile</button>
+</nav>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script>
+(function(){
+  var userId="", refCode="", activeLevel=1;
+  var l1Members=[], l2Members=[], l3Members=[];
+
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+
+  waitSb(async function(){
+    var s=await window.VitelAuth.requireAuth(); if(!s)return;
+    userId=s.user.id;
+
+    var {data:p}=await window.sb.from("profiles").select("referral_code,vip_level").eq("id",userId).single();
+    refCode=p?.referral_code||"";
+    document.getElementById("refCode").textContent=refCode;
+    var link=location.origin+"/register.html?ref="+refCode;
+    document.getElementById("refLink").textContent=link;
+
+    // VIP tiers
+    var vip=p?.vip_level||0;
+    [1,2,3,4].forEach(function(n){
+      if(n<=vip) document.getElementById("vt"+n).classList.add("unlocked");
+    });
+
+    // Load L1 members
+    var {data:l1}=await window.sb.from("profiles").select("id,full_name,email,created_at")
+      .eq("referred_by",userId).order("created_at",{ascending:false});
+    l1Members=l1||[];
+
+    // Count active (has deposit)
+    var l1Ids=l1Members.map(function(x){return x.id;});
+    var activeIds=new Set();
+    if(l1Ids.length){
+      var {data:deps}=await window.sb.from("deposits").select("user_id").eq("status","completed").in("user_id",l1Ids);
+      (deps||[]).forEach(function(d){activeIds.add(d.user_id);});
+    }
+    l1Members=l1Members.map(function(m){return Object.assign({},m,{isActive:activeIds.has(m.id)});});
+
+    var activeCount=Array.from(activeIds).length;
+    document.getElementById("totalTeam").textContent=l1Members.length;
+    document.getElementById("activeTeam").textContent=activeCount;
+    document.getElementById("activeRefs").textContent="("+activeCount+" active)";
+
+    // L2
+    if(l1Ids.length){
+      var {data:l2}=await window.sb.from("profiles").select("id,full_name,email,created_at,referred_by").in("referred_by",l1Ids);
+      l2Members=l2||[];
+    }
+
+    // L3
+    var l2Ids=l2Members.map(function(x){return x.id;});
+    if(l2Ids.length){
+      var {data:l3}=await window.sb.from("profiles").select("id,full_name,email,created_at").in("referred_by",l2Ids);
+      l3Members=l3||[];
+    }
+
+    // Referral earnings
+    var {data:rw}=await window.sb.from("referral_rewards").select("amount").eq("referrer_id",userId);
+    var total=(rw||[]).reduce(function(s,r){return s+Number(r.amount||0);},0);
+    document.getElementById("refEarnings").textContent="₦"+total.toLocaleString();
+
+    renderLevel(1);
+  });
+
+  window.switchLevel=function(btn,level){
+    document.querySelectorAll(".ltab").forEach(function(b){b.classList.remove("on");});
+    btn.classList.add("on");
+    activeLevel=level;
+    renderLevel(level);
+  };
+
+  function renderLevel(level){
+    var members=level===1?l1Members:level===2?l2Members:l3Members;
+    var el=document.getElementById("membersList");
+    if(!members.length){
+      el.innerHTML='<div class="empty"><div class="empty-icon">👥</div><p>No Level '+level+' members yet.</p></div>';
+      return;
+    }
+    el.innerHTML='<div class="card" style="margin:0 16px">'+(members.map(function(m){
+      var active=m.isActive!==false;
+      var name=m.full_name||m.email||"User";
+      return '<div class="member-item">'+
+        '<div class="member-avatar">'+name[0].toUpperCase()+'</div>'+
+        '<div style="flex:1">'+
+          '<div class="member-name">'+name+'</div>'+
+          '<div class="member-date">Joined '+new Date(m.created_at).toLocaleDateString()+'</div>'+
+        '</div>'+
+        '<span class="member-status '+(active?'status-active':'status-inactive')+'">'+(active?'Active':'Inactive')+'</span>'+
+      '</div>';
+    }).join(""))+'</div>';
+  }
+
+  window.copyCode=function(){
+    navigator.clipboard.writeText(refCode).then(function(){window.VitelAuth.toast("Referral code copied!");});
+  };
+
+  window.shareLink=function(){
+    var link=location.origin+"/register.html?ref="+refCode;
+    if(navigator.share){
+      navigator.share({title:"Join Vitel",text:"Join me on Vitel and earn daily! Use my code: "+refCode,url:link});
+    } else {
+      navigator.clipboard.writeText(link).then(function(){window.VitelAuth.toast("Referral link copied!");});
+    }
+  };
+})();
+</script>
+</body>
+</html>
+  
