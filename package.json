@@ -1,0 +1,8 @@
+{
+  "name": "vitel",
+  "version": "1.0.0",
+  "description": "Vitel Investment Platform",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}
