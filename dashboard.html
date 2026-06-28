@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — Home</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    /* Hero wallet card */
+    .wallet-card {
+      background: linear-gradient(135deg, var(--purple) 0%, var(--sky) 100%);
+      border-radius: 20px; padding: 24px 20px 20px;
+      color: #fff; margin: 16px; position: relative; overflow: hidden;
+      box-shadow: 0 8px 24px rgba(124,58,237,.3);
+    }
+    .wallet-card::before {
+      content:''; position:absolute; top:-40px; right:-40px;
+      width:160px; height:160px; background:rgba(255,255,255,.07); border-radius:50%;
+    }
+    .wallet-card::after {
+      content:''; position:absolute; bottom:-30px; left:-20px;
+      width:100px; height:100px; background:rgba(255,255,255,.05); border-radius:50%;
+    }
+    .wallet-label { font-size:12px; opacity:.8; letter-spacing:.06em; text-transform:uppercase; }
+    .wallet-balance { font-size:36px; font-weight:800; margin:6px 0 4px; letter-spacing:-.5px; }
+    .wallet-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; position:relative; z-index:1; }
+    .wallet-btn {
+      padding:10px; border-radius:12px; border:none; font-weight:700; font-size:13px;
+      cursor:pointer; transition:opacity .15s; -webkit-tap-highlight-color:transparent;
+    }
+    .wallet-btn.deposit  { background:rgba(255,255,255,.2); color:#fff; }
+    .wallet-btn.withdraw { background:rgba(255,255,255,.1); color:#fff; border:1.5px solid rgba(255,255,255,.3); }
+
+    /* Quick actions */
+    .quick-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:0 16px; margin-bottom:20px; }
+    .quick-item {
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+      padding:14px 8px; border-radius:var(--radius); background:var(--card);
+      box-shadow:var(--shadow); cursor:pointer; font-size:11px; font-weight:600;
+      color:var(--text2); -webkit-tap-highlight-color:transparent;
+      transition:transform .15s;
+    }
+    .quick-item:active { transform:scale(.95); }
+    .quick-item-icon { font-size:24px; }
+
+    /* Section row */
+    .sec-row { display:flex; align-items:center; justify-content:space-between; padding:0 16px; margin-bottom:10px; }
+    .sec-row h2 { font-size:15px; font-weight:700; }
+    .sec-row a  { font-size:13px; color:var(--purple); font-weight:600; }
+
+    /* Notice banner */
+    .notice {
+      margin:0 16px 16px; padding:12px 14px; border-radius:var(--radius-sm);
+      background:var(--sky-light); border-left:3px solid var(--sky);
+      font-size:13px; color:var(--sky-dark); font-weight:500; display:none;
+    }
+    .notice.show { display:block; }
+
+    /* Income strip */
+    .income-strip {
+      background:linear-gradient(135deg,#D1FAE5,#A7F3D0);
+      border-radius:var(--radius); margin:0 16px 16px; padding:14px 16px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .income-left .lbl { font-size:11px; font-weight:600; color:#065F46; opacity:.7; text-transform:uppercase; }
+    .income-left .val { font-size:22px; font-weight:800; color:#065F46; }
+    .income-claim-btn {
+      padding:9px 18px; border-radius:30px; background:#10B981; color:#fff;
+      font-size:13px; font-weight:700; border:none; cursor:pointer;
+    }
+
+    /* My active products mini */
+    .mini-product {
+      background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
+      padding:14px 16px; margin:0 16px 10px;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .mp-left .mp-name { font-size:14px; font-weight:700; color:var(--text); }
+    .mp-left .mp-prog { font-size:12px; color:var(--muted); margin-top:2px; }
+    .mp-right .mp-earn { font-size:15px; font-weight:800; color:var(--success); }
+    .prog-bar { height:4px; background:var(--bg); border-radius:4px; margin-top:6px; overflow:hidden; width:120px; }
+    .prog-fill { height:100%; background:linear-gradient(90deg,var(--purple),var(--sky)); border-radius:4px; }
+  </style>
+</head>
+<body
+  data-supabase-url="YOUR_SUPABASE_URL"
+  data-supabase-anon="YOUR_SUPABASE_ANON_KEY"
+>
+
+<div class="page-wrap">
+  <!-- Top bar -->
+  <div style="background:var(--white);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50">
+    <div>
+      <div style="font-size:12px;color:var(--muted)">Good day 👋</div>
+      <div style="font-size:17px;font-weight:800;color:var(--text)" data-auth="full_name">User</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="vip-badge vip-0" data-vip style="font-size:11px">Member</span>
+      <a class="icon-btn" href="notifications.html">
+        🔔
+        <span class="badge" id="notifBadge" style="display:none">!</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Wallet card -->
+  <div class="wallet-card anim anim-1">
+    <div style="position:relative;z-index:1">
+      <div class="wallet-label">Total Balance</div>
+      <div class="wallet-balance" id="walletBalance">₦0.00</div>
+      <div style="font-size:12px;opacity:.75">Ref: <span data-auth="referral_code" style="font-weight:700">—</span></div>
+      <div class="wallet-actions">
+        <button class="wallet-btn deposit"  onclick="location.href='recharge.html'">+ Deposit</button>
+        <button class="wallet-btn withdraw" onclick="location.href='withdraw.html'">↑ Withdraw</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="section anim anim-2">
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-val" id="statDeposit">₦0</div>
+        <div class="stat-lbl">Deposited</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statProfit">₦0</div>
+        <div class="stat-lbl">Profit</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statRef">₦0</div>
+        <div class="stat-lbl">Referral</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily income strip (if active products) -->
+  <div class="income-strip anim anim-2" id="incomeStrip" style="display:none">
+    <div class="income-left">
+      <div class="lbl">Daily Income</div>
+      <div class="val" id="dailyIncome">₦0</div>
+    </div>
+    <button class="income-claim-btn" onclick="location.href='my-products.html'">Collect →</button>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="quick-grid anim anim-3">
+    <a class="quick-item" href="products.html">
+      <span class="quick-item-icon">📦</span>Products
+    </a>
+    <a class="quick-item" href="team.html">
+      <span class="quick-item-icon">👥</span>My Team
+    </a>
+    <a class="quick-item" href="daily-checkin.html">
+      <span class="quick-item-icon">📅</span>Check In
+    </a>
+    <a class="quick-item" href="monthly-salary.html">
+      <span class="quick-item-icon">💰</span>Salary
+    </a>
+    <a class="quick-item" href="gift-code.html">
+      <span class="quick-item-icon">🎁</span>Gift Code
+    </a>
+    <a class="quick-item" href="recharge-history.html">
+      <span class="quick-item-icon">📋</span>History
+    </a>
+    <a class="quick-item" href="messages.html">
+      <span class="quick-item-icon">✉️</span>Messages
+    </a>
+    <a class="quick-item" href="bank-card.html">
+      <span class="quick-item-icon">💳</span>Bank Card
+    </a>
+  </div>
+
+  <!-- My active products -->
+  <div class="sec-row anim anim-4">
+    <h2>Active Products</h2>
+    <a href="my-products.html">View all</a>
+  </div>
+  <div id="activeProducts">
+    <div class="loader-wrap"><div class="loader"></div></div>
+  </div>
+
+  <!-- Recent transactions -->
+  <div class="sec-row anim anim-4" style="margin-top:8px">
+    <h2>Recent Transactions</h2>
+    <a href="recharge-history.html">View all</a>
+  </div>
+  <div class="card" style="margin:0 16px 20px" id="recentTx">
+    <div class="loader-wrap"><div class="loader"></div></div>
+  </div>
+</div>
+
+<!-- Bottom nav -->
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="location.href='dashboard.html'">
+    <span class="nav-icon">🏠</span>Home
+  </button>
+  <button class="nav-item" onclick="location.href='products.html'">
+    <span class="nav-icon">📦</span>Products
+  </button>
+  <button class="nav-item" onclick="location.href='team.html'">
+    <span class="nav-icon">👥</span>Team
+  </button>
+  <button class="nav-item" onclick="location.href='profile.html'">
+    <span class="nav-icon">👤</span>Profile
+  </button>
+</nav>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script>
+(function(){
+  "use strict";
+  function waitSb(cb){ if(window.sb&&window.VitelAuth){cb();return;} var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50); }
+
+  waitSb(async function(){
+    var s = await window.VitelAuth.requireAuth();
+    if(!s) return;
+    var uid = s.user.id;
+
+    await window.VitelAuth.loadProfile(uid);
+
+    // Wallet
+    var {data:w} = await window.sb.from("wallets").select("*").eq("user_id",uid).single();
+    if(w){
+      document.getElementById("walletBalance").textContent = window.VitelAuth.money(w.balance);
+      document.getElementById("statDeposit").textContent = "₦"+Number(w.total_deposit||0).toLocaleString();
+      document.getElementById("statProfit").textContent  = "₦"+Number(w.total_profit||0).toLocaleString();
+      document.getElementById("statRef").textContent     = "₦"+Number(w.total_referral_bonus||0).toLocaleString();
+    }
+
+    // Active products
+    var {data:prods} = await window.sb.from("user_products")
+      .select("*, products(name)")
+      .eq("user_id",uid).eq("status","active").limit(3);
+
+    var ap = document.getElementById("activeProducts");
+    if(!prods||!prods.length){
+      ap.innerHTML = '<div class="empty"><div class="empty-icon">📦</div><p>No active products yet.<br><a href="products.html" style="color:var(--purple);font-weight:700">Browse products →</a></p></div>';
+    } else {
+      var totalDaily = prods.reduce(function(s,p){return s+Number(p.daily_income||0);},0);
+      document.getElementById("incomeStrip").style.display="flex";
+      document.getElementById("dailyIncome").textContent = window.VitelAuth.money(totalDaily);
+
+      ap.innerHTML = prods.map(function(p){
+        var pct = p.duration_days ? Math.min(100,Math.round((p.days_collected/p.duration_days)*100)) : 0;
+        return '<div class="mini-product">'+
+          '<div class="mp-left">'+
+            '<div class="mp-name">'+p.products?.name+'</div>'+
+            '<div class="mp-prog">'+p.days_collected+'/'+p.duration_days+' days</div>'+
+            '<div class="prog-bar"><div class="prog-fill" style="width:'+pct+'%"></div></div>'+
+          '</div>'+
+          '<div class="mp-right"><div class="mp-earn">+'+window.VitelAuth.money(p.daily_income)+'/day</div></div>'+
+        '</div>';
+      }).join("");
+    }
+
+    // Recent transactions
+    var {data:txs} = await window.sb.from("wallet_transactions")
+      .select("*").eq("user_id",uid).order("created_at",{ascending:false}).limit(5);
+
+    var txWrap = document.getElementById("recentTx");
+    if(!txs||!txs.length){
+      txWrap.innerHTML='<div class="empty"><p>No transactions yet.</p></div>';
+    } else {
+      txWrap.innerHTML = txs.map(function(t){
+        var isCredit = t.amount>0;
+        return '<div class="list-item">'+
+          '<div class="li-left"><div class="li-title">'+t.description+'</div><div class="li-sub">'+window.VitelAuth.timeAgo(t.created_at)+'</div></div>'+
+          '<div class="li-right"><div class="li-amount '+(isCredit?'credit':'debit')+'">'+(isCredit?'+':'')+window.VitelAuth.money(Math.abs(t.amount))+'</div></div>'+
+        '</div>';
+      }).join("");
+    }
+
+    // Unread messages badge
+    var {count} = await window.sb.from("messages").select("id",{count:"exact",head:true})
+      .or("user_id.eq."+uid+",user_id.is.null").eq("is_read",false);
+    if(count>0){ var b=document.getElementById("notifBadge"); b.style.display="flex"; b.textContent=count>9?"9+":count; }
+  });
+})();
+</script>
+</body>
+</html>
