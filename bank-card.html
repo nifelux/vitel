@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — Bank Cards</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    .bc-item { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin:0 16px 12px; }
+    .bc-bank { font-size:15px; font-weight:800; color:var(--text); margin-bottom:2px; }
+    .bc-num  { font-size:18px; font-weight:700; color:var(--purple); letter-spacing:.1em; }
+    .bc-name { font-size:13px; color:var(--muted); margin-top:2px; }
+    .bc-actions { display:flex; gap:8px; margin-top:12px; }
+    .form-section { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; margin:0 16px; }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+<div class="page-wrap">
+  <div class="topbar">
+    <a class="back-btn" href="profile.html">‹</a>
+    <span class="topbar-title">💳 Bank Cards</span>
+    <div></div>
+  </div>
+
+  <div style="padding:16px 16px 8px;font-size:15px;font-weight:700">Saved Accounts</div>
+  <div id="cardList"><div class="loader-wrap"><div class="loader"></div></div></div>
+
+  <div style="padding:16px 16px 8px;font-size:15px;font-weight:700;margin-top:8px">Add New Account</div>
+  <div class="form-section">
+    <div id="formAlert" class="alert"></div>
+    <div class="field"><label class="field-label">Bank Name</label><input class="field-input" id="bankName" placeholder="e.g. OPay, GTBank, Access Bank"/></div>
+    <div class="field"><label class="field-label">Account Number</label><input class="field-input" id="acctNum" type="tel" maxlength="10" placeholder="10-digit account number"/></div>
+    <div class="field"><label class="field-label">Account Name</label><input class="field-input" id="acctName" placeholder="As it appears on your bank"/></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <input type="checkbox" id="isDefault" style="width:16px;height:16px;accent-color:var(--purple)"/>
+      <label for="isDefault" style="font-size:13px;font-weight:600;color:var(--text2)">Set as default withdrawal account</label>
+    </div>
+    <button class="btn btn-primary" onclick="addCard()">Save Account</button>
+  </div>
+  <div style="height:20px"></div>
+</div>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script>
+(function(){
+  var uid="";
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+  waitSb(async function(){
+    var s=await window.VitelAuth.requireAuth(); if(!s)return;
+    uid=s.user.id; await loadCards();
+  });
+
+  async function loadCards(){
+    var r=await fetch("/api/user?action=bank-cards&user_id="+uid);
+    var d=await r.json();
+    var cards=d.cards||[];
+    var el=document.getElementById("cardList");
+    if(!cards.length){ el.innerHTML='<div class="empty"><div class="empty-icon">💳</div><p>No saved accounts yet.</p></div>'; return; }
+    el.innerHTML=cards.map(function(c){
+      return '<div class="bc-item">'+
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between">'+
+          '<div>'+
+            '<div class="bc-bank">'+c.bank_name+(c.is_default?' <span class="pill pill-purple" style="font-size:10px">Default</span>':'')+'</div>'+
+            '<div class="bc-num">'+c.account_number+'</div>'+
+            '<div class="bc-name">'+c.account_name+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="bc-actions">'+
+          '<button onclick="deleteCard(\''+c.id+'\')" class="btn btn-ghost btn-sm" style="color:var(--danger);border:1.5px solid var(--danger);background:transparent">Remove</button>'+
+        '</div>'+
+      '</div>';
+    }).join("");
+  }
+
+  window.addCard=async function(){
+    var al=document.getElementById("formAlert");
+    var bank=document.getElementById("bankName").value.trim();
+    var num =document.getElementById("acctNum").value.trim();
+    var name=document.getElementById("acctName").value.trim();
+    var def =document.getElementById("isDefault").checked;
+    if(!bank||!num||!name){ al.textContent="All fields are required"; al.className="alert alert-error show"; return; }
+    if(num.length!==10||isNaN(num)){ al.textContent="Account number must be 10 digits"; al.className="alert alert-error show"; return; }
+    al.className="alert";
+    var r=await fetch("/api/user?action=add-bank-card",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:uid,bank_name:bank,account_number:num,account_name:name,is_default:def})});
+    var d=await r.json();
+    if(d.ok){
+      window.VitelAuth.toast("✅ Account saved!");
+      document.getElementById("bankName").value=""; document.getElementById("acctNum").value=""; document.getElementById("acctName").value=""; document.getElementById("isDefault").checked=false;
+      await loadCards();
+    } else { al.textContent=d.error||"Error"; al.className="alert alert-error show"; }
+  };
+
+  window.deleteCard=async function(id){
+    if(!confirm("Remove this account?")) return;
+    await fetch("/api/user?action=delete-bank-card",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:uid,card_id:id})});
+    window.VitelAuth.toast("Account removed"); await loadCards();
+  };
+})();
+</script>
+</body>
+    </html>
+  
