@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vitel — Register</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <style>
+    body { background: var(--white); }
+    .auth-wrap { max-width: 440px; margin: 0 auto; min-height: 100vh; }
+    .auth-hero {
+      background: linear-gradient(135deg, var(--purple) 0%, var(--sky) 100%);
+      padding: 48px 32px 40px; text-align: center; color: #fff;
+    }
+    .logo { font-size: 32px; font-weight: 800; margin-bottom: 6px; }
+    .logo-sub { font-size: 13px; opacity: .8; }
+    .auth-body { padding: 24px 24px 60px; }
+    .auth-title { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+    .auth-sub   { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+    .ref-box {
+      background: var(--purple-light); border-radius: var(--radius-sm);
+      padding: 10px 14px; margin-bottom: 20px;
+      font-size: 13px; color: var(--purple); font-weight: 600;
+      display: none;
+    }
+    .ref-box.show { display: block; }
+    .auth-switch { text-align: center; font-size: 14px; color: var(--muted); margin-top: 16px; }
+    .auth-switch a { color: var(--purple); font-weight: 700; }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+
+<div class="auth-wrap">
+  <div class="auth-hero">
+    <div class="logo">⚡ Vitel</div>
+    <div class="logo-sub">Start your investment journey</div>
+  </div>
+
+  <div class="auth-body">
+    <div class="auth-title">Create Account</div>
+    <div class="auth-sub">Join thousands earning daily on Vitel</div>
+
+    <div id="refBox" class="ref-box">🎉 Referred by: <span id="refName">a friend</span></div>
+    <div id="alert" class="alert"></div>
+
+    <div class="field">
+      <label class="field-label">Full Name</label>
+      <input class="field-input" type="text" id="fullName" placeholder="Enter your full name" />
+    </div>
+    <div class="field">
+      <label class="field-label">Email Address</label>
+      <input class="field-input" type="email" id="email" placeholder="you@example.com" autocomplete="email" />
+    </div>
+    <div class="field">
+      <label class="field-label">Phone Number</label>
+      <input class="field-input" type="tel" id="phone" placeholder="080XXXXXXXX" />
+    </div>
+    <div class="field">
+      <label class="field-label">Password</label>
+      <input class="field-input" type="password" id="password" placeholder="Min. 6 characters" />
+    </div>
+    <div class="field">
+      <label class="field-label">Referral Code <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <input class="field-input" type="text" id="refCode" placeholder="Enter referral code" style="text-transform:uppercase" />
+    </div>
+
+    <button class="btn btn-primary" id="regBtn">Create Account</button>
+
+    <div class="auth-switch">
+      Already have an account? <a href="index.html">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // Pre-fill ref code from URL
+  var params = new URLSearchParams(location.search);
+  var ref = params.get("ref");
+  if (ref) {
+    document.getElementById("refCode").value = ref.toUpperCase();
+    document.getElementById("refBox").classList.add("show");
+  }
+
+  document.getElementById("refCode").addEventListener("input", function () {
+    this.value = this.value.toUpperCase();
+  });
+
+  document.getElementById("regBtn").addEventListener("click", async function () {
+    var btn      = this;
+    var name     = document.getElementById("fullName").value.trim();
+    var email    = document.getElementById("email").value.trim();
+    var phone    = document.getElementById("phone").value.trim();
+    var pass     = document.getElementById("password").value;
+    var refCode  = document.getElementById("refCode").value.trim().toUpperCase();
+    var alertEl  = document.getElementById("alert");
+
+    if (!name || !email || !phone || !pass) {
+      alertEl.textContent = "Please fill in all required fields.";
+      alertEl.className = "alert alert-error show"; return;
+    }
+    if (pass.length < 6) {
+      alertEl.textContent = "Password must be at least 6 characters.";
+      alertEl.className = "alert alert-error show"; return;
+    }
+
+    btn.disabled = true; btn.textContent = "Creating account…";
+    alertEl.className = "alert";
+
+    // Look up referrer
+    var referredBy = null;
+    if (refCode) {
+      var { data: ref } = await window.sb.from("profiles").select("id, full_name").eq("referral_code", refCode).single();
+      if (ref) { referredBy = ref.id; document.getElementById("refName").textContent = ref.full_name || "a friend"; }
+    }
+
+    // Sign up
+    var { data, error } = await window.sb.auth.signUp({ email, password: pass });
+
+    if (error) {
+      alertEl.textContent = error.message;
+      alertEl.className = "alert alert-error show";
+      btn.disabled = false; btn.textContent = "Create Account"; return;
+    }
+
+    var userId = data.user?.id;
+    if (userId) {
+      await window.sb.from("profiles").upsert({
+        id: userId, full_name: name, phone,
+        referred_by: referredBy || null,
+      });
+    }
+
+    alertEl.textContent = "Account created! Signing you in…";
+    alertEl.className = "alert alert-success show";
+
+    // Sign in immediately
+    await window.sb.auth.signInWithPassword({ email, password: pass });
+    setTimeout(function () { location.href = "/dashboard.html"; }, 1000);
+  });
+});
+</script>
+</body>
+  </html>
+  
