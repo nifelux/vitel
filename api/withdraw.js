@@ -1,0 +1,42 @@
+/**
+ * /api/withdraw.js
+ * POST → request withdrawal
+ * GET  ?action=history&user_id=
+ */
+const { createClient } = require("@supabase/supabase-js");
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+module.exports = async function(req, res) {
+  res.setHeader("Access-Control-Allow-Origin","*");
+  res.setHeader("Access-Control-Allow-Methods","GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers","Content-Type");
+  if(req.method==="OPTIONS") return res.status(200).end();
+
+  const user_id = req.method==="GET" ? req.query.user_id : req.body?.user_id;
+  if(!user_id) return res.status(400).json({ error:"user_id required" });
+
+  if(req.method==="GET") {
+    const { data,error } = await supabase.from("withdrawals").select("*").eq("user_id",user_id).order("created_at",{ascending:false}).limit(50);
+    if(error) return res.status(500).json({ error:error.message });
+    return res.json({ ok:true, withdrawals:data||[] });
+  }
+
+  if(req.method!=="POST") return res.status(405).json({ error:"Method not allowed" });
+
+  const { amount, bank_name, account_number, account_name } = req.body;
+  if(!amount||!bank_name||!account_number||!account_name) return res.status(400).json({ error:"All fields required" });
+  const num = Number(amount);
+  if(num < 1000) return res.status(400).json({ error:"Minimum withdrawal is ₦1,000" });
+
+  // Check balance
+  const { data:w } = await supabase.from("wallets").select("balance").eq("user_id",user_id).single();
+  if(!w || w.balance < num) return res.json({ ok:false, error:"Insufficient balance" });
+
+  // Deduct balance
+  await supabase.from("wallets").update({ balance:w.balance-num, total_withdrawn:(w.total_withdrawn||0)+num, updated_at:new Date().toISOString() }).eq("user_id",user_id);
+  await supabase.from("wallet_transactions").insert({ user_id, type:"withdrawal", amount:-num, description:"Withdrawal request" });
+  const { error } = await supabase.from("withdrawals").insert({ user_id, amount:num, bank_name, account_number, account_name, status:"pending" });
+  if(error) return res.status(500).json({ error:error.message });
+  return res.json({ ok:true });
+};
+  
