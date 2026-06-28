@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — Products</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    .tabs { display:flex; gap:8px; padding:16px; overflow-x:auto; scrollbar-width:none; }
+    .tabs::-webkit-scrollbar{display:none}
+    .tab {
+      flex-shrink:0; padding:8px 20px; border-radius:30px;
+      font-size:13px; font-weight:700; cursor:pointer;
+      border:2px solid var(--border); background:var(--card); color:var(--muted);
+      transition:all .15s;
+    }
+    .tab.on { background:var(--purple); border-color:var(--purple); color:#fff; }
+
+    .vip-lock {
+      background:linear-gradient(135deg,var(--purple-light),var(--sky-light));
+      border-radius:var(--radius); margin:0 16px 16px; padding:14px 16px;
+      border:1.5px solid var(--purple-light);
+    }
+    .vip-lock h3 { font-size:14px; color:var(--purple); margin-bottom:4px; }
+    .vip-lock p  { font-size:12px; color:var(--muted); }
+
+    .product-card { margin:0 16px 14px; }
+    .product-header { padding:18px 16px; position:relative; }
+    .product-type-badge {
+      position:absolute; top:12px; right:12px;
+      padding:3px 10px; border-radius:20px;
+      font-size:10px; font-weight:800;
+      background:rgba(255,255,255,.2); color:#fff;
+    }
+    .product-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); }
+    .pstat { background:var(--card); padding:12px; text-align:center; }
+    .pstat-val { font-size:15px; font-weight:800; color:var(--purple); }
+    .pstat-lbl { font-size:10px; color:var(--muted); margin-top:2px; text-transform:uppercase; }
+    .product-footer { padding:14px 16px; border-top:1px solid var(--border); }
+    .bought-chip {
+      display:flex; align-items:center; justify-content:center; gap:6px;
+      padding:12px; border-radius:30px; background:var(--bg);
+      font-size:14px; font-weight:700; color:var(--muted);
+    }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+
+<div class="page-wrap">
+  <div class="topbar">
+    <span class="topbar-title">📦 Products</span>
+    <span class="vip-badge vip-0" data-vip style="font-size:11px">Member</span>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-tab="newbie" onclick="switchTab(this,'newbie')">🌱 Newbie</button>
+    <button class="tab" data-tab="vip1"    onclick="switchTab(this,'vip1')">👑 VIP 1</button>
+    <button class="tab" data-tab="vip2"    onclick="switchTab(this,'vip2')">💎 VIP 2</button>
+    <button class="tab" data-tab="vip3"    onclick="switchTab(this,'vip3')">🔷 VIP 3</button>
+    <button class="tab" data-tab="vip4"    onclick="switchTab(this,'vip4')">⚡ VIP 4</button>
+  </div>
+
+  <!-- VIP requirements info -->
+  <div class="vip-lock" id="vipInfo" style="display:none">
+    <h3 id="vipInfoTitle">VIP 1 Required</h3>
+    <p id="vipInfoDesc">Refer 3 active users to unlock VIP 1 products.</p>
+    <a href="team.html" style="color:var(--purple);font-weight:700;font-size:13px;display:inline-block;margin-top:6px">View my team →</a>
+  </div>
+
+  <div id="productsList">
+    <div class="loader-wrap"><div class="loader"></div></div>
+  </div>
+</div>
+
+<!-- Confirm purchase modal -->
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:flex-end;justify-content:center">
+  <div style="background:var(--white);border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:480px">
+    <h3 style="font-size:18px;font-weight:800;margin-bottom:4px" id="modalTitle">Confirm Purchase</h3>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:20px" id="modalSub">Are you sure?</p>
+    <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px" id="modalDetails"></div>
+    <div id="modalAlert" class="alert"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="confirmBtn" onclick="confirmPurchase()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span>Home</button>
+  <button class="nav-item active" onclick="location.href='products.html'"><span class="nav-icon">📦</span>Products</button>
+  <button class="nav-item" onclick="location.href='team.html'"><span class="nav-icon">👥</span>Team</button>
+  <button class="nav-item" onclick="location.href='profile.html'"><span class="nav-icon">👤</span>Profile</button>
+</nav>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script>
+(function(){
+  "use strict";
+  var userId="", userVip=0, walletBal=0, userProducts=[], activeTab="newbie", pendingProductId="";
+
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+
+  waitSb(async function(){
+    var s = await window.VitelAuth.requireAuth(); if(!s)return;
+    userId=s.user.id;
+
+    var {data:p} = await window.sb.from("profiles").select("vip_level").eq("id",userId).single();
+    userVip = p?.vip_level||0;
+    await window.VitelAuth.loadProfile(userId);
+
+    var {data:w} = await window.sb.from("wallets").select("balance").eq("user_id",userId).single();
+    walletBal = w?.balance||0;
+
+    var {data:up} = await window.sb.from("user_products").select("product_id").eq("user_id",userId);
+    userProducts = (up||[]).map(function(x){return x.product_id;});
+
+    await loadProducts(activeTab);
+  });
+
+  window.switchTab = async function(btn, tab){
+    document.querySelectorAll(".tab").forEach(function(b){b.classList.remove("on");});
+    btn.classList.add("on");
+    activeTab = tab;
+    await loadProducts(tab);
+  };
+
+  async function loadProducts(tab){
+    var el = document.getElementById("productsList");
+    var vi = document.getElementById("vipInfo");
+    el.innerHTML = '<div class="loader-wrap"><div class="loader"></div></div>';
+    vi.style.display="none";
+
+    var type="newbie", vipLevel=0;
+    if(tab!=="newbie"){ type="vip"; vipLevel=parseInt(tab.replace("vip","")); }
+
+    // VIP lock check
+    if(type==="vip" && userVip < vipLevel){
+      var reqs={1:3,2:5,3:10,4:25};
+      document.getElementById("vipInfoTitle").textContent = "VIP "+vipLevel+" Required";
+      document.getElementById("vipInfoDesc").textContent = "Refer "+reqs[vipLevel]+" active users to unlock VIP "+vipLevel+" products. You're currently VIP "+userVip+".";
+      vi.style.display="block";
+    }
+
+    var query = window.sb.from("products").select("*").eq("type",type).order("sort_order");
+    if(type==="vip") query = query.eq("vip_level",vipLevel);
+    var {data:prods} = await query;
+
+    if(!prods||!prods.length){
+      el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><p>No products available.</p></div>';
+      return;
+    }
+
+    el.innerHTML = prods.map(function(p){
+      var locked = p.status==="locked" || (type==="vip" && userVip<vipLevel);
+      var bought = userProducts.includes(p.id);
+      var hdr = locked
+        ? 'background:linear-gradient(135deg,#94A3B8,#CBD5E1)'
+        : 'background:linear-gradient(135deg,var(--purple),var(--sky))';
+
+      return '<div class="product-card card">'+
+        '<div class="product-header" style="'+hdr+'">'+
+          '<div class="product-type-badge">'+(type==="vip"?"VIP "+vipLevel:"Newbie")+'</div>'+
+          '<div style="color:#fff;font-size:11px;opacity:.8;text-transform:uppercase;letter-spacing:.06em">'+p.name+'</div>'+
+          '<div style="color:#fff;font-size:28px;font-weight:800;margin-top:4px">'+window.VitelAuth.money(p.price)+'</div>'+
+        '</div>'+
+        '<div class="product-stats">'+
+          '<div class="pstat"><div class="pstat-val">'+window.VitelAuth.money(p.daily_income)+'</div><div class="pstat-lbl">Daily</div></div>'+
+          '<div class="pstat"><div class="pstat-val">'+p.duration_days+'d</div><div class="pstat-lbl">Duration</div></div>'+
+          '<div class="pstat"><div class="pstat-val">'+window.VitelAuth.money(p.total_return)+'</div><div class="pstat-lbl">Total</div></div>'+
+        '</div>'+
+        '<div class="product-footer">'+
+          (bought
+            ? '<div class="bought-chip">✅ Already Purchased</div>'
+            : locked
+              ? '<div class="bought-chip">🔒 '+(p.status==="locked"?"Locked by Admin":"VIP "+vipLevel+" Required")+'</div>'
+              : '<button class="btn btn-primary" onclick="openModal(\''+p.id+'\',\''+p.name+'\','+p.price+')">Buy Now</button>'
+          )+
+        '</div>'+
+      '</div>';
+    }).join("");
+  }
+
+  window.openModal = function(id, name, price){
+    pendingProductId = id;
+    document.getElementById("modalTitle").textContent = "Buy " + name;
+    document.getElementById("modalSub").textContent = "This product can only be purchased once.";
+    document.getElementById("modalDetails").innerHTML =
+      '<div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="color:var(--muted)">Price</span><strong>'+window.VitelAuth.money(price)+'</strong></div>'+
+      '<div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Your Balance</span><strong style="color:'+(walletBal>=price?'var(--success)':'var(--danger)')+'">'+window.VitelAuth.money(walletBal)+'</strong></div>'+
+      (walletBal < price ? '<div style="margin-top:10px;font-size:12px;color:var(--danger)">⚠️ Insufficient balance. Please deposit first.</div>' : '');
+    document.getElementById("modalAlert").className="alert";
+    var modal=document.getElementById("modal");
+    modal.style.display="flex";
+    document.getElementById("confirmBtn").disabled = walletBal < price;
+  };
+
+  window.closeModal = function(){
+    document.getElementById("modal").style.display="none";
+    pendingProductId="";
+  };
+
+  window.confirmPurchase = async function(){
+    var btn=document.getElementById("confirmBtn");
+    var alertEl=document.getElementById("modalAlert");
+    btn.disabled=true; btn.textContent="Purchasing…";
+    alertEl.className="alert";
+
+    var {data,error} = await window.sb.rpc("purchase_product",{p_user_id:userId,p_product_id:pendingProductId});
+
+    if(error||!data?.ok){
+      alertEl.textContent = data?.error||error?.message||"Purchase failed.";
+      alertEl.className="alert alert-error show";
+      btn.disabled=false; btn.textContent="Confirm"; return;
+    }
+
+    window.VitelAuth.toast("✅ Product purchased successfully!");
+    closeModal();
+    // Refresh
+    var {data:w}=await window.sb.from("wallets").select("balance").eq("user_id",userId).single();
+    walletBal=w?.balance||0;
+    var {data:up}=await window.sb.from("user_products").select("product_id").eq("user_id",userId);
+    userProducts=(up||[]).map(function(x){return x.product_id;});
+    await loadProducts(activeTab);
+  };
+})();
+</script>
+</body>
+  </html>
+  
