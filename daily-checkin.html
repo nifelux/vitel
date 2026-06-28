@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — Daily Check-In</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    .checkin-card {
+      background:linear-gradient(135deg,var(--purple),var(--sky));
+      border-radius:24px; margin:16px; padding:32px 24px; text-align:center; color:#fff;
+      box-shadow:0 8px 32px rgba(124,58,237,.3);
+    }
+    .checkin-icon { font-size:56px; margin-bottom:12px; }
+    .checkin-amount { font-size:48px; font-weight:800; letter-spacing:-1px; }
+    .checkin-label { font-size:14px; opacity:.8; margin-top:4px; }
+    .checkin-btn {
+      background:#fff; color:var(--purple); border:none;
+      padding:16px 48px; border-radius:50px; font-size:18px; font-weight:800;
+      cursor:pointer; margin-top:24px; width:100%; transition:opacity .15s;
+    }
+    .checkin-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .streak-row { display:flex; gap:6px; justify-content:center; margin-top:16px; flex-wrap:wrap; }
+    .streak-day {
+      width:36px; height:36px; border-radius:10px; border:2px solid rgba(255,255,255,.3);
+      display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:rgba(255,255,255,.6);
+    }
+    .streak-day.done { background:rgba(255,255,255,.25); color:#fff; border-color:transparent; }
+    .streak-day.today { background:#fff; color:var(--purple); border-color:#fff; }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+<div class="page-wrap">
+  <div class="topbar">
+    <a class="back-btn" href="profile.html">‹</a>
+    <span class="topbar-title">📅 Daily Check-In</span>
+    <div></div>
+  </div>
+
+  <div class="checkin-card">
+    <div class="checkin-icon" id="checkinIcon">🎁</div>
+    <div class="checkin-amount">₦50</div>
+    <div class="checkin-label">Daily bonus — claim every day!</div>
+    <button class="checkin-btn" id="checkinBtn" onclick="doCheckin()">Claim ₦50 Bonus</button>
+    <div class="streak-row" id="streakRow"></div>
+  </div>
+
+  <div class="section">
+    <div class="card card-pad">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:12px">Recent Check-Ins</h3>
+      <div id="checkinHistory"><div class="loader-wrap"><div class="loader"></div></div></div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script>
+(function(){
+  var uid="";
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+  waitSb(async function(){
+    var s=await window.VitelAuth.requireAuth(); if(!s)return;
+    uid=s.user.id;
+
+    var r=await fetch("/api/bonus?action=checkin-status&user_id="+uid);
+    var d=await r.json();
+    var btn=document.getElementById("checkinBtn");
+    if(d.claimed){
+      btn.textContent="✅ Already Claimed Today"; btn.disabled=true;
+      document.getElementById("checkinIcon").textContent="✅";
+    }
+
+    // Last 7 days streak
+    var {data:hist}=await window.sb.from("daily_checkins").select("date").eq("user_id",uid).order("date",{ascending:false}).limit(30);
+    var claimedDates=new Set((hist||[]).map(function(x){return x.date;}));
+    var streakEl=document.getElementById("streakRow");
+    var days=["Su","Mo","Tu","We","Th","Fr","Sa"];
+    for(var i=6;i>=0;i--){
+      var dt=new Date(); dt.setDate(dt.getDate()-i);
+      var ds=dt.toISOString().slice(0,10);
+      var isToday=i===0;
+      var done=claimedDates.has(ds);
+      var div=document.createElement("div");
+      div.className="streak-day"+(isToday?" today":done?" done":"");
+      div.textContent=done||isToday?"✓":days[dt.getDay()];
+      streakEl.appendChild(div);
+    }
+
+    var histEl=document.getElementById("checkinHistory");
+    if(!hist||!hist.length){
+      histEl.innerHTML='<div style="text-align:center;color:var(--muted);font-size:13px;padding:12px">No check-ins yet.</div>';
+    } else {
+      histEl.innerHTML=hist.slice(0,7).map(function(c){
+        return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">'+
+          '<span style="font-size:13px;color:var(--text2)">'+new Date(c.date).toDateString()+'</span>'+
+          '<span style="font-size:13px;font-weight:700;color:var(--success)">+₦50</span>'+
+        '</div>';
+      }).join("");
+    }
+  });
+
+  window.doCheckin=async function(){
+    var btn=document.getElementById("checkinBtn");
+    btn.disabled=true; btn.textContent="Claiming…";
+    var r=await fetch("/api/bonus?action=daily-checkin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:uid})});
+    var d=await r.json();
+    if(d.ok){
+      window.VitelAuth.toast("🎉 Claimed ₦50 daily bonus!");
+      btn.textContent="✅ Claimed!";
+      document.getElementById("checkinIcon").textContent="✅";
+    } else {
+      window.VitelAuth.toast(d.error==="already_claimed"?"Already claimed today!":d.error||"Error");
+      btn.disabled=false; btn.textContent="Claim ₦50 Bonus";
+    }
+  };
+})();
+</script>
+</body>
+  </html>
+  
