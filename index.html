@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vitel — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <style>
+    body { background: var(--white); }
+    .auth-wrap { max-width: 440px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+    .auth-hero {
+      background: linear-gradient(135deg, var(--purple) 0%, var(--sky) 100%);
+      padding: 60px 32px 48px; text-align: center; color: #fff;
+      position: relative; overflow: hidden;
+    }
+    .auth-hero::before {
+      content: ''; position: absolute; top: -60px; right: -60px;
+      width: 200px; height: 200px; background: rgba(255,255,255,.08);
+      border-radius: 50%;
+    }
+    .auth-hero::after {
+      content: ''; position: absolute; bottom: -40px; left: -40px;
+      width: 140px; height: 140px; background: rgba(255,255,255,.06);
+      border-radius: 50%;
+    }
+    .logo { font-size: 36px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 8px; position: relative; z-index: 1; }
+    .logo-sub { font-size: 14px; opacity: .8; position: relative; z-index: 1; }
+
+    .auth-body { flex: 1; padding: 28px 24px 40px; }
+    .auth-title { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+    .auth-sub   { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+
+    .forgot { font-size: 13px; color: var(--purple); font-weight: 600; text-align: right; display: block; margin-top: -8px; margin-bottom: 20px; }
+    .auth-switch { text-align: center; font-size: 14px; color: var(--muted); margin-top: 20px; }
+    .auth-switch a { color: var(--purple); font-weight: 700; }
+
+    .divider-row { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+    .divider-row span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .divider-row::before, .divider-row::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+
+<div class="auth-wrap">
+  <div class="auth-hero">
+    <div class="logo">⚡ Vitel</div>
+    <div class="logo-sub">Invest Smart. Earn Daily.</div>
+  </div>
+
+  <div class="auth-body">
+    <div class="auth-title">Welcome back 👋</div>
+    <div class="auth-sub">Sign in to your Vitel account</div>
+
+    <div id="alert" class="alert"></div>
+
+    <div class="field">
+      <label class="field-label">Email Address</label>
+      <input class="field-input" type="email" id="email" placeholder="you@example.com" autocomplete="email" />
+    </div>
+
+    <div class="field">
+      <label class="field-label">Password</label>
+      <input class="field-input" type="password" id="password" placeholder="Enter your password" autocomplete="current-password" />
+    </div>
+
+    <a href="forgot-password.html" class="forgot">Forgot password?</a>
+
+    <button class="btn btn-primary" id="loginBtn">Sign In</button>
+
+    <div class="auth-switch">
+      Don't have an account? <a href="register.html">Create one</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  // Already logged in?
+  window.sb?.auth.getSession().then(function (r) {
+    if (r.data?.session) location.href = "/dashboard.html";
+  });
+
+  document.getElementById("loginBtn").addEventListener("click", async function () {
+    var btn   = this;
+    var email = document.getElementById("email").value.trim();
+    var pass  = document.getElementById("password").value;
+    var alert = document.getElementById("alert");
+
+    if (!email || !pass) {
+      alert.textContent = "Please fill in all fields.";
+      alert.className = "alert alert-error show"; return;
+    }
+
+    btn.disabled = true; btn.textContent = "Signing in…";
+    alert.className = "alert";
+
+    var { data, error } = await window.sb.auth.signInWithPassword({ email, password: pass });
+
+    if (error) {
+      alert.textContent = error.message || "Invalid credentials.";
+      alert.className = "alert alert-error show";
+      btn.disabled = false; btn.textContent = "Sign In"; return;
+    }
+
+    location.href = "/dashboard.html";
+  });
+
+  // Enter key
+  document.getElementById("password").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") document.getElementById("loginBtn").click();
+  });
+});
+</script>
+</body>
+  </html>
+  
