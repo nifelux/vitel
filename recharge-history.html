@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — Recharge History</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    .hist-tabs { display:flex; gap:8px; padding:12px 16px; border-bottom:1px solid var(--border); }
+    .htab { flex:1; padding:9px; border-radius:var(--radius-sm); font-size:13px; font-weight:700; text-align:center; border:2px solid var(--border); background:var(--card); color:var(--muted); cursor:pointer; transition:all .15s; }
+    .htab.on { background:var(--purple); border-color:var(--purple); color:#fff; }
+    .dep-status { padding:3px 9px; border-radius:20px; font-size:10px; font-weight:700; }
+    .s-pending   { background:#FEF3C7; color:#92400E; }
+    .s-completed { background:#D1FAE5; color:#065F46; }
+    .s-rejected  { background:#FEE2E2; color:#991B1B; }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+<div class="page-wrap">
+  <div class="topbar">
+    <a class="back-btn" href="profile.html">‹</a>
+    <span class="topbar-title">📥 Recharge History</span>
+    <div></div>
+  </div>
+  <div class="hist-tabs">
+    <button class="htab on" onclick="switchTab(this,'all')">All</button>
+    <button class="htab" onclick="switchTab(this,'pending')">Pending</button>
+    <button class="htab" onclick="switchTab(this,'completed')">Approved</button>
+    <button class="htab" onclick="switchTab(this,'rejected')">Rejected</button>
+  </div>
+  <div class="card" style="margin:16px;overflow:hidden" id="histList">
+    <div class="loader-wrap"><div class="loader"></div></div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script>
+(function(){
+  var uid="", allDeps=[], activeFilter="all";
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+  waitSb(async function(){
+    var s=await window.VitelAuth.requireAuth(); if(!s)return;
+    uid=s.user.id;
+    var {data}=await window.sb.from("deposits").select("*").eq("user_id",uid).order("created_at",{ascending:false});
+    allDeps=data||[]; render();
+  });
+
+  window.switchTab=function(btn,f){
+    document.querySelectorAll(".htab").forEach(function(b){b.classList.remove("on");});
+    btn.classList.add("on"); activeFilter=f; render();
+  };
+
+  function render(){
+    var list=activeFilter==="all"?allDeps:allDeps.filter(function(d){return d.status===activeFilter;});
+    var el=document.getElementById("histList");
+    if(!list.length){ el.innerHTML='<div class="empty"><div class="empty-icon">📥</div><p>No deposits found.</p></div>'; return; }
+    el.innerHTML=list.map(function(d){
+      var sc="s-"+(d.status||"pending");
+      return '<div class="list-item">'+
+        '<div class="li-left">'+
+          '<div class="li-title">Deposit <span class="dep-status '+sc+'">'+d.status+'</span></div>'+
+          '<div class="li-sub">'+new Date(d.created_at).toLocaleString()+'</div>'+
+          (d.narration?'<div class="li-sub" style="font-family:monospace;color:var(--purple)">'+d.narration+'</div>':'')+
+        '</div>'+
+        '<div class="li-right"><div class="li-amount credit">+'+window.VitelAuth.money(d.amount)+'</div></div>'+
+      '</div>';
+    }).join("");
+  }
+})();
+</script>
+</body>
+      </html>
+      
