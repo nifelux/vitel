@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../assets/css/styles.css"/>
+  <style>
+    html,body { background:#0F172A!important; color:#E2E8F0!important; }
+    body::before,body::after { display:none!important; }
+
+    .admin-top { background:#1E293B; border-bottom:1px solid #334155; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:50; }
+    .admin-brand { font-size:18px; font-weight:800; color:#fff; }
+    .admin-brand span { color:var(--sky); }
+    .admin-tag { padding:4px 10px; border-radius:6px; background:rgba(239,68,68,.15); color:#f87171; font-size:11px; font-weight:700; }
+
+    .admin-nav { display:flex; gap:4px; padding:12px 16px; background:#1E293B; border-bottom:1px solid #334155; overflow-x:auto; scrollbar-width:none; }
+    .admin-nav::-webkit-scrollbar { display:none; }
+    .anav { flex-shrink:0; padding:8px 16px; border-radius:10px; font-size:13px; font-weight:600; color:#94A3B8; cursor:pointer; border:none; background:transparent; transition:all .15s; }
+    .anav.on { background:rgba(14,165,233,.15); color:var(--sky); }
+
+    .admin-main { padding:16px; max-width:640px; margin:0 auto; }
+
+    /* Stats */
+    .a-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:16px; }
+    .a-stat { background:#1E293B; border-radius:14px; padding:16px; border:1px solid #334155; }
+    .a-stat-val { font-size:28px; font-weight:800; color:#fff; }
+    .a-stat-lbl { font-size:11px; color:#64748B; text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
+
+    /* Cards */
+    .a-card { background:#1E293B; border-radius:16px; border:1px solid #334155; overflow:hidden; margin-bottom:14px; }
+    .a-card-title { padding:14px 16px; border-bottom:1px solid #334155; font-size:14px; font-weight:700; color:#fff; display:flex; align-items:center; justify-content:space-between; }
+    .a-filter { display:flex; gap:6px; padding:12px 16px; border-bottom:1px solid #334155; overflow-x:auto; scrollbar-width:none; }
+    .a-ftab { flex-shrink:0; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700; color:#64748B; cursor:pointer; border:1.5px solid #334155; background:transparent; transition:all .15s; }
+    .a-ftab.on { background:rgba(14,165,233,.15); border-color:rgba(14,165,233,.4); color:var(--sky); }
+
+    /* Deposit items */
+    .dep-row { padding:14px 16px; border-bottom:1px solid #334155; }
+    .dep-row:last-child { border-bottom:none; }
+    .dep-name { font-size:14px; font-weight:700; color:#fff; }
+    .dep-meta { font-size:12px; color:#64748B; margin-top:2px; }
+    .dep-amt  { font-size:18px; font-weight:800; color:#34D399; }
+    .dep-nar  { display:inline-flex; align-items:center; gap:6px; background:rgba(245,158,11,.1); border-radius:6px; padding:4px 10px; margin-top:8px; }
+    .dep-nar-code { font-size:12px; font-weight:700; color:#FCD34D; }
+    .dep-actions { display:flex; gap:8px; margin-top:10px; }
+    .btn-approve { flex:1; padding:9px; border-radius:8px; border:none; background:rgba(52,211,153,.15); color:#34D399; font-size:12px; font-weight:700; cursor:pointer; }
+    .btn-reject  { flex:1; padding:9px; border-radius:8px; border:none; background:rgba(239,68,68,.12); color:#f87171; font-size:12px; font-weight:700; cursor:pointer; }
+    .btn-approve:disabled,.btn-reject:disabled { opacity:.35; cursor:not-allowed; }
+
+    /* Method switcher */
+    .method-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:14px; }
+    .m-btn { padding:14px 8px; border-radius:12px; border:2px solid #334155; background:#0F172A; text-align:center; cursor:pointer; transition:all .2s; }
+    .m-btn .m-icon { font-size:22px; display:block; margin-bottom:6px; }
+    .m-btn .m-lbl { font-size:12px; font-weight:700; color:#64748B; }
+    .m-btn.on-manual   { border-color:#F59E0B; background:rgba(245,158,11,.1); }
+    .m-btn.on-manual .m-lbl { color:#F59E0B; }
+    .m-btn.on-paystack { border-color:#34D399; background:rgba(52,211,153,.1); }
+    .m-btn.on-paystack .m-lbl { color:#34D399; }
+    .m-btn.on-ipayng   { border-color:var(--sky); background:rgba(14,165,233,.1); }
+    .m-btn.on-ipayng .m-lbl { color:var(--sky); }
+    .m-status { margin:0 14px 14px; padding:10px 14px; border-radius:10px; font-size:13px; font-weight:600; text-align:center; background:rgba(14,165,233,.1); color:var(--sky); }
+
+    /* Product form */
+    .a-field { margin-bottom:12px; }
+    .a-label { font-size:12px; font-weight:600; color:#94A3B8; margin-bottom:5px; display:block; }
+    .a-input { width:100%; padding:11px 14px; background:#0F172A; border:1.5px solid #334155; border-radius:8px; font-size:14px; color:#fff; outline:none; }
+    .a-input:focus { border-color:var(--sky); }
+    .a-select { width:100%; padding:11px 14px; background:#0F172A; border:1.5px solid #334155; border-radius:8px; font-size:14px; color:#fff; outline:none; appearance:none; }
+
+    /* User row */
+    .user-row { padding:12px 16px; border-bottom:1px solid #334155; display:flex; align-items:center; gap:12px; }
+    .user-row:last-child { border-bottom:none; }
+    .user-avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--purple),var(--sky)); display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; color:#fff; flex-shrink:0; }
+    .user-name { font-size:14px; font-weight:700; color:#fff; }
+    .user-meta { font-size:11px; color:#64748B; margin-top:1px; }
+    .user-bal  { font-size:14px; font-weight:700; color:#34D399; }
+
+    /* Toast */
+    #toast { background:#1E293B!important; border:1px solid #334155!important; }
+
+    /* Pages */
+    .apage { display:none; }
+    .apage.on { display:block; }
+
+    .refresh-btn { padding:5px 12px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid #334155; color:#64748B; font-size:12px; font-weight:600; cursor:pointer; }
+
+    /* Send message */
+    .msg-user-list { max-height:200px; overflow-y:auto; border:1.5px solid #334155; border-radius:8px; margin-bottom:12px; }
+    .msg-user-opt { padding:10px 14px; border-bottom:1px solid #334155; font-size:13px; color:#94A3B8; cursor:pointer; }
+    .msg-user-opt:hover { background:rgba(255,255,255,.03); color:#fff; }
+    .msg-user-opt.selected { background:rgba(14,165,233,.1); color:var(--sky); }
+    .msg-user-opt:last-child { border-bottom:none; }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+
+<!-- Top bar -->
+<div class="admin-top">
+  <div class="admin-brand">Vitel<span>Admin</span></div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <div class="admin-tag">ADMIN</div>
+    <button onclick="window.VitelAuth.logout()" style="background:none;border:none;color:#64748B;cursor:pointer;font-size:13px">Sign out</button>
+  </div>
+</div>
+
+<!-- Nav -->
+<div class="admin-nav">
+  <button class="anav on" onclick="showPage('overview',this)">📊 Overview</button>
+  <button class="anav" onclick="showPage('deposits',this)">💳 Deposits</button>
+  <button class="anav" onclick="showPage('withdrawals',this)">💸 Withdrawals</button>
+  <button class="anav" onclick="showPage('products',this)">📦 Products</button>
+  <button class="anav" onclick="showPage('users',this)">👥 Users</button>
+  <button class="anav" onclick="showPage('messages',this)">✉️ Messages</button>
+  <button class="anav" onclick="showPage('settings',this)">⚙️ Settings</button>
+</div>
+
+<div class="admin-main">
+
+  <!-- ═══ OVERVIEW ═══ -->
+  <div class="apage on" id="page-overview">
+    <div class="a-stats">
+      <div class="a-stat"><div class="a-stat-val" id="ov-users">—</div><div class="a-stat-lbl">Total Users</div></div>
+      <div class="a-stat"><div class="a-stat-val" id="ov-active">—</div><div class="a-stat-lbl">Active Products</div></div>
+      <div class="a-stat"><div class="a-stat-val" id="ov-deps" style="color:#FCD34D">—</div><div class="a-stat-lbl">Pending Deposits</div></div>
+      <div class="a-stat"><div class="a-stat-val" id="ov-withs" style="color:#FB923C">—</div><div class="a-stat-lbl">Pending Withdrawals</div></div>
+    </div>
+    <div class="a-card">
+      <div class="a-card-title">Quick Links</div>
+      <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button onclick="showPage('deposits',document.querySelector('.anav:nth-child(2)'))" style="padding:12px;border-radius:10px;background:rgba(252,211,77,.1);color:#FCD34D;border:none;font-weight:700;font-size:13px;cursor:pointer">💳 Review Deposits</button>
+        <button onclick="showPage('withdrawals',document.querySelector('.anav:nth-child(3)'))" style="padding:12px;border-radius:10px;background:rgba(251,146,60,.1);color:#FB923C;border:none;font-weight:700;font-size:13px;cursor:pointer">💸 Review Withdrawals</button>
+        <button onclick="showPage('products',document.querySelector('.anav:nth-child(4)'))" style="padding:12px;border-radius:10px;background:rgba(14,165,233,.1);color:var(--sky);border:none;font-weight:700;font-size:13px;cursor:pointer">📦 Manage Products</button>
+        <button onclick="showPage('messages',document.querySelector('.anav:nth-child(6)'))" style="padding:12px;border-radius:10px;background:rgba(139,92,246,.1);color:#a78bfa;border:none;font-weight:700;font-size:13px;cursor:pointer">✉️ Send Message</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DEPOSITS ═══ -->
+  <div class="apage" id="page-deposits">
+    <div class="a-card">
+      <div class="a-card-title">
+        Deposit Queue
+        <button class="refresh-btn" onclick="loadDeposits()">↻ Refresh</button>
+      </div>
+      <div class="a-filter">
+        <button class="a-ftab on" onclick="setDepFilter(this,'pending')">Pending</button>
+        <button class="a-ftab" onclick="setDepFilter(this,'completed')">Approved</button>
+        <button class="a-ftab" onclick="setDepFilter(this,'rejected')">Rejected</button>
+        <button class="a-ftab" onclick="setDepFilter(this,'all')">All</button>
+      </div>
+      <div id="depList"><div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ WITHDRAWALS ═══ -->
+  <div class="apage" id="page-withdrawals">
+    <div class="a-card">
+      <div class="a-card-title">
+        Withdrawal Queue
+        <button class="refresh-btn" onclick="loadWithdrawals()">↻ Refresh</button>
+      </div>
+      <div class="a-filter">
+        <button class="a-ftab on" onclick="setWFilter(this,'pending')">Pending</button>
+        <button class="a-ftab" onclick="setWFilter(this,'approved')">Approved</button>
+        <button class="a-ftab" onclick="setWFilter(this,'rejected')">Rejected</button>
+      </div>
+      <div id="wList"><div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ PRODUCTS ═══ -->
+  <div class="apage" id="page-products">
+    <div class="a-card" style="margin-bottom:14px">
+      <div class="a-card-title">Add / Edit Product</div>
+      <div style="padding:14px">
+        <input type="hidden" id="pid"/>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="a-field"><label class="a-label">Name</label><input class="a-input" id="pname" placeholder="Product name"/></div>
+          <div class="a-field">
+            <label class="a-label">Type</label>
+            <select class="a-select" id="ptype" onchange="toggleVipField()">
+              <option value="newbie">Newbie</option>
+              <option value="vip">VIP</option>
+            </select>
+          </div>
+          <div class="a-field" id="vipField" style="display:none">
+            <label class="a-label">VIP Level (1-4)</label>
+            <input class="a-input" id="pvip" type="number" min="1" max="4" placeholder="1"/>
+          </div>
+          <div class="a-field"><label class="a-label">Price (₦)</label><input class="a-input" id="pprice" type="number" placeholder="0"/></div>
+          <div class="a-field"><label class="a-label">Daily Income (₦)</label><input class="a-input" id="pdaily" type="number" placeholder="0"/></div>
+          <div class="a-field"><label class="a-label">Duration (days)</label><input class="a-input" id="pdur" type="number" placeholder="0"/></div>
+          <div class="a-field"><label class="a-label">Total Return (₦)</label><input class="a-input" id="ptotal" type="number" placeholder="0"/></div>
+          <div class="a-field"><label class="a-label">Sort Order</label><input class="a-input" id="psort" type="number" placeholder="0"/></div>
+        </div>
+        <div class="a-field"><label class="a-label">Description</label><input class="a-input" id="pdesc" placeholder="Short description"/></div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button onclick="saveProduct()" style="flex:1;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--purple),var(--sky));color:#fff;font-weight:700;font-size:14px;cursor:pointer">Save Product</button>
+          <button onclick="clearForm()" style="padding:11px 16px;border-radius:10px;border:1.5px solid #334155;background:transparent;color:#94A3B8;font-weight:600;font-size:14px;cursor:pointer">Clear</button>
+        </div>
+        <div id="prodAlert" class="alert" style="margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="a-card">
+      <div class="a-card-title">All Products <button class="refresh-btn" onclick="loadProducts()">↻</button></div>
+      <div id="prodList2"><div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ USERS ═══ -->
+  <div class="apage" id="page-users">
+    <div class="a-card">
+      <div class="a-card-title">All Users <button class="refresh-btn" onclick="loadUsers()">↻</button></div>
+      <div style="padding:12px 16px;border-bottom:1px solid #334155">
+        <input class="a-input" id="userSearch" placeholder="Search by name or email…" oninput="filterUsers(this.value)"/>
+      </div>
+      <div id="userList"><div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ MESSAGES ═══ -->
+  <div class="apage" id="page-messages">
+    <div class="a-card">
+      <div class="a-card-title">Send Message to Users</div>
+      <div style="padding:14px">
+        <div class="a-field">
+          <label class="a-label">Recipient</label>
+          <select class="a-select" id="msgTarget" onchange="onTargetChange(this.value)">
+            <option value="all">📢 All Users (Broadcast)</option>
+            <option value="specific">👤 Specific User</option>
+          </select>
+        </div>
+        <div class="a-field" id="userSearchWrap" style="display:none">
+          <label class="a-label">Search User</label>
+          <input class="a-input" id="msgUserSearch" placeholder="Type name or email…" oninput="searchMsgUsers(this.value)"/>
+          <div class="msg-user-list" id="msgUserList" style="display:none"></div>
+          <input type="hidden" id="msgUserId"/>
+        </div>
+        <div class="a-field"><label class="a-label">Title</label><input class="a-input" id="msgTitle" placeholder="Message title"/></div>
+        <div class="a-field"><label class="a-label">Message</label><textarea class="a-input" id="msgContent" rows="4" placeholder="Write your message…" style="resize:vertical"></textarea></div>
+        <button onclick="sendMessage()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--purple),var(--sky));color:#fff;font-weight:700;font-size:15px;cursor:pointer">Send Message</button>
+        <div id="msgAlert" class="alert" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SETTINGS ═══ -->
+  <div class="apage" id="page-settings">
+    <div class="a-card" style="margin-bottom:14px">
+      <div class="a-card-title">Deposit Method</div>
+      <div class="method-grid">
+        <div class="m-btn" id="m-manual" onclick="setMethod('manual')"><span class="m-icon">🏦</span><span class="m-lbl">Manual</span></div>
+        <div class="m-btn" id="m-paystack" onclick="setMethod('paystack')"><span class="m-icon">💳</span><span class="m-lbl">Paystack</span></div>
+        <div class="m-btn" id="m-ipayng" onclick="setMethod('ipayng')"><span class="m-icon">⚡</span><span class="m-lbl">iPayNG</span></div>
+      </div>
+      <div class="m-status" id="mStatus">Loading…</div>
+    </div>
+    <div class="a-card">
+      <div class="a-card-title">Manual Account Details</div>
+      <div style="padding:14px;font-size:14px;line-height:2;color:#94A3B8">
+        <div>Bank: <strong style="color:#fff">OPay</strong></div>
+        <div>Account: <strong style="color:#fff">6556493720</strong></div>
+        <div>Name: <strong style="color:#fff">OLUWANIFEMI ABDULLAHI OLUDE</strong></div>
+      </div>
+    </div>
+    <div class="a-card">
+      <div class="a-card-title">Webhook URLs</div>
+      <div style="padding:14px;font-size:12px;color:#64748B;line-height:2">
+        <div>Paystack + iPayNG: <span style="color:var(--sky)">https://YOUR_DOMAIN/api/webhooks</span></div>
+      </div>
+    </div>
+    <div class="a-card">
+      <div class="a-card-title">Grant Admin Access</div>
+      <div style="padding:14px">
+        <div class="a-field"><label class="a-label">User ID or Email</label><input class="a-input" id="adminUserId" placeholder="Enter user ID"/></div>
+        <button onclick="grantAdmin()" style="width:100%;padding:11px;border-radius:10px;border:none;background:rgba(239,68,68,.15);color:#f87171;font-weight:700;font-size:14px;cursor:pointer">Grant Admin Access</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end admin-main -->
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="../assets/js/supabase.js" defer></script>
+<script src="../assets/js/auth.js" defer></script>
+<script>
+(function(){
+  var adminId="", allUsers=[], depFilter="pending", wFilter="pending";
+
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+
+  waitSb(async function(){
+    var s=await window.VitelAuth.requireAdmin(); if(!s)return;
+    adminId=s.user.id;
+    await loadStats();
+    await loadDeposits();
+    await loadMethod();
+  });
+
+  /* ── Page nav ── */
+  window.showPage=function(id,btn){
+    document.querySelectorAll(".apage").forEach(function(p){p.classList.remove("on");});
+    document.querySelectorAll(".anav").forEach(function(b){b.classList.remove("on");});
+    document.getElementById("page-"+id).classList.add("on");
+    if(btn) btn.classList.add("on");
+    if(id==="deposits") loadDeposits();
+    if(id==="withdrawals") loadWithdrawals();
+    if(id==="products") loadProducts();
+    if(id==="users") loadUsers();
+  };
+
+  /* ── Stats ── */
+  async function loadStats(){
+    var r=await fetch("/api/admin?action=stats&admin_id="+adminId);
+    var d=await r.json();
+    if(d.ok){
+      document.getElementById("ov-users").textContent=d.total_users||0;
+      document.getElementById("ov-active").textContent=d.active_products||0;
+      document.getElementById("ov-deps").textContent=d.pending_deposits||0;
+      document.getElementById("ov-withs").textContent=d.pending_withdrawals||0;
+    }
+  }
+
+  /* ── Deposits ── */
+  window.loadDeposits=async function(){
+    var el=document.getElementById("depList");
+    el.innerHTML='<div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div>';
+    var r=await fetch("/api/admin?action=deposits&status="+depFilter+"&admin_id="+adminId);
+    var d=await r.json();
+    var deps=d.deposits||[];
+    if(!deps.length){ el.innerHTML='<div style="text-align:center;color:#64748B;padding:32px;font-size:14px">No deposits found.</div>'; return; }
+    el.innerHTML=deps.map(function(dep){
+      var name=dep.profiles?.full_name||dep.profiles?.email||"User";
+      var sColor={pending:"#FCD34D",completed:"#34D399",rejected:"#f87171"}[dep.status]||"#94A3B8";
+      var canAct=dep.status==="pending";
+      return '<div class="dep-row">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+          '<div><div class="dep-name">'+name+'</div><div class="dep-meta">'+dep.profiles?.email+' · '+new Date(dep.created_at).toLocaleString()+'</div></div>'+
+          '<div style="text-align:right"><div class="dep-amt">₦'+Number(dep.amount).toLocaleString()+'</div><div style="font-size:11px;font-weight:700;color:'+sColor+'">'+dep.status.toUpperCase()+'</div></div>'+
+        '</div>'+
+        (dep.narration?'<div class="dep-nar"><span class="dep-nar-code">'+dep.narration+'</span><button onclick="copyTxt(\''+dep.narration+'\')" style="background:none;border:none;color:#FCD34D;font-size:11px;cursor:pointer;font-weight:700">COPY</button></div>':'')+
+        (canAct?'<div class="dep-actions"><button class="btn-approve" onclick="actDep(\''+dep.id+'\',\'approve\',this)">✅ Approve</button><button class="btn-reject" onclick="actDep(\''+dep.id+'\',\'reject\',this)">❌ Reject</button></div>':'')+
+      '</div>';
+    }).join("");
+  };
+
+  window.setDepFilter=function(btn,f){
+    document.querySelectorAll("#page-deposits .a-ftab").forEach(function(b){b.classList.remove("on");});
+    btn.classList.add("on"); depFilter=f; loadDeposits();
+  };
+
+  window.actDep=async function(id,act,btn){
+    var row=btn.closest(".dep-actions"),btns=row.querySelectorAll("button");
+    btns.forEach(function(b){b.disabled=true;});
+    btn.textContent=act==="approve"?"Approving…":"Rejecting…";
+    var r=await fetch("/api/admin?action=process-deposit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({deposit_id:id,act,admin_id:adminId})});
+    var d=await r.json();
+    window.VitelAuth.toast(d.ok?(act==="approve"?"✅ Approved!":"🚫 Rejected"):("❌ "+d.error));
+    setTimeout(loadDeposits,600);
+    loadStats();
+  };
+
+  /* ── Withdrawals ── */
+  window.loadWithdrawals=async function(){
+    var el=document.getElementById("wList");
+    el.innerHTML='<div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div>';
+    var r=await fetch("/api/admin?action=withdrawals&status="+wFilter+"&admin_id="+adminId);
+    var d=await r.json();
+    var ws=d.withdrawals||[];
+    if(!ws.length){ el.innerHTML='<div style="text-align:center;color:#64748B;padding:32px;font-size:14px">No withdrawals found.</div>'; return; }
+    el.innerHTML=ws.map(function(w){
+      var name=w.profiles?.full_name||w.profiles?.email||"User";
+      var canAct=w.status==="pending";
+      var sColor={pending:"#FCD34D",approved:"#34D399",rejected:"#f87171"}[w.status]||"#94A3B8";
+      return '<div class="dep-row">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+          '<div><div class="dep-name">'+name+'</div><div class="dep-meta">'+w.bank_name+' · '+w.account_number+'</div><div class="dep-meta">'+w.account_name+' · '+new Date(w.created_at).toLocaleString()+'</div></div>'+
+          '<div style="text-align:right"><div class="dep-amt">₦'+Number(w.amount).toLocaleString()+'</div><div style="font-size:11px;font-weight:700;color:'+sColor+'">'+w.status.toUpperCase()+'</div></div>'+
+        '</div>'+
+        (canAct?'<div class="dep-actions" style="margin-top:10px"><button class="btn-approve" onclick="actW(\''+w.id+'\',\'approve\',this)">✅ Approve</button><button class="btn-reject" onclick="actW(\''+w.id+'\',\'reject\',this)">❌ Reject</button></div>':'')+
+      '</div>';
+    }).join("");
+  };
+
+  window.setWFilter=function(btn,f){
+    document.querySelectorAll("#page-withdrawals .a-ftab").forEach(function(b){b.classList.remove("on");});
+    btn.classList.add("on"); wFilter=f; loadWithdrawals();
+  };
+
+  window.actW=async function(id,act,btn){
+    var row=btn.closest(".dep-actions"),btns=row.querySelectorAll("button");
+    btns.forEach(function(b){b.disabled=true;});
+    var r=await fetch("/api/admin?action=process-withdrawal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({withdrawal_id:id,act,admin_id:adminId})});
+    var d=await r.json();
+    window.VitelAuth.toast(d.ok?(act==="approve"?"✅ Approved!":"🚫 Rejected"):("❌ "+d.error));
+    setTimeout(loadWithdrawals,600);
+  };
+
+  /* ── Products ── */
+  window.toggleVipField=function(){ document.getElementById("vipField").style.display=document.getElementById("ptype").value==="vip"?"block":"none"; };
+
+  window.loadProducts=async function(){
+    var el=document.getElementById("prodList2");
+    el.innerHTML='<div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div>';
+    var r=await fetch("/api/admin?action=products&admin_id="+adminId);
+    var d=await r.json();
+    var prods=d.products||[];
+    if(!prods.length){ el.innerHTML='<div style="text-align:center;color:#64748B;padding:24px;font-size:14px">No products yet.</div>'; return; }
+    el.innerHTML=prods.map(function(p){
+      var locked=p.status==="locked";
+      return '<div style="padding:12px 16px;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between">'+
+        '<div>'+
+          '<div style="font-size:13px;font-weight:700;color:'+(locked?"#64748B":"#fff")+'">'+p.name+' '+(locked?'🔒':'')+' <span style="font-size:10px;color:var(--sky)">'+p.type.toUpperCase()+(p.vip_level>0?" L"+p.vip_level:"")+'</span></div>'+
+          '<div style="font-size:11px;color:#64748B;margin-top:2px">₦'+Number(p.price).toLocaleString()+' → ₦'+Number(p.daily_income).toLocaleString()+'/day × '+p.duration_days+'d</div>'+
+        '</div>'+
+        '<div style="display:flex;gap:6px">'+
+          '<button onclick="editProd('+JSON.stringify(p).replace(/"/g,"'")+',\''+p.id+'\')" style="padding:5px 10px;border-radius:6px;border:none;background:rgba(14,165,233,.15);color:var(--sky);font-size:11px;font-weight:700;cursor:pointer">Edit</button>'+
+          '<button onclick="toggleProd(\''+p.id+'\',\''+p.status+'\')" style="padding:5px 10px;border-radius:6px;border:none;background:rgba(245,158,11,.1);color:#FCD34D;font-size:11px;font-weight:700;cursor:pointer">'+(locked?"Unlock":"Lock")+'</button>'+
+          '<button onclick="delProd(\''+p.id+'\')" style="padding:5px 10px;border-radius:6px;border:none;background:rgba(239,68,68,.12);color:#f87171;font-size:11px;font-weight:700;cursor:pointer">Del</button>'+
+        '</div>'+
+      '</div>';
+    }).join("");
+  };
+
+  window.editProd=function(p,id){
+    document.getElementById("pid").value=id;
+    document.getElementById("pname").value=p.name||"";
+    document.getElementById("ptype").value=p.type||"newbie";
+    document.getElementById("pvip").value=p.vip_level||"";
+    document.getElementById("pprice").value=p.price||"";
+    document.getElementById("pdaily").value=p.daily_income||"";
+    document.getElementById("pdur").value=p.duration_days||"";
+    document.getElementById("ptotal").value=p.total_return||"";
+    document.getElementById("psort").value=p.sort_order||"";
+    document.getElementById("pdesc").value=p.description||"";
+    toggleVipField();
+    window.scrollTo({top:0,behavior:"smooth"});
+  };
+
+  window.clearForm=function(){
+    ["pid","pname","pprice","pdaily","pdur","ptotal","psort","pdesc","pvip"].forEach(function(id){document.getElementById(id).value="";});
+    document.getElementById("ptype").value="newbie"; toggleVipField();
+    document.getElementById("prodAlert").className="alert";
+  };
+
+  window.saveProduct=async function(){
+    var al=document.getElementById("prodAlert");
+    var payload={
+      id:document.getElementById("pid").value||undefined,
+      name:document.getElementById("pname").value,
+      description:document.getElementById("pdesc").value,
+      type:document.getElementById("ptype").value,
+      vip_level:document.getElementById("pvip").value||0,
+      price:document.getElementById("pprice").value,
+      daily_income:document.getElementById("pdaily").value,
+      duration_days:document.getElementById("pdur").value,
+      total_return:document.getElementById("ptotal").value,
+      sort_order:document.getElementById("psort").value||0,
+      admin_id:adminId,
+    };
+    if(!payload.name||!payload.price){ al.textContent="Name and price are required"; al.className="alert alert-error show"; return; }
+    var r=await fetch("/api/admin?action=save-product",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    var d=await r.json();
+    if(d.ok){ window.VitelAuth.toast("✅ Product saved!"); clearForm(); loadProducts(); al.className="alert"; }
+    else { al.textContent=d.error||"Error saving"; al.className="alert alert-error show"; }
+  };
+
+  window.toggleProd=async function(id,current){
+    var newStatus=current==="locked"?"active":"locked";
+    await fetch("/api/admin?action=toggle-product",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({product_id:id,status:newStatus,admin_id:adminId})});
+    window.VitelAuth.toast(newStatus==="locked"?"🔒 Product locked":"🔓 Product unlocked");
+    loadProducts();
+  };
+
+  window.delProd=async function(id){
+    if(!confirm("Delete this product? This cannot be undone.")) return;
+    await fetch("/api/admin?action=delete-product",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({product_id:id,admin_id:adminId})});
+    window.VitelAuth.toast("Product deleted"); loadProducts();
+  };
+
+  /* ── Users ── */
+  window.loadUsers=async function(){
+    var el=document.getElementById("userList");
+    el.innerHTML='<div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div>';
+    var r=await fetch("/api/admin?action=users&admin_id="+adminId);
+    var d=await r.json();
+    allUsers=d.users||[];
+    renderUsers(allUsers);
+  };
+
+  function renderUsers(users){
+    var el=document.getElementById("userList");
+    if(!users.length){ el.innerHTML='<div style="text-align:center;color:#64748B;padding:24px;font-size:14px">No users found.</div>'; return; }
+    el.innerHTML=users.map(function(u){
+      return '<div class="user-row">'+
+        '<div class="user-avatar">'+(u.full_name||u.email||"?")[0].toUpperCase()+'</div>'+
+        '<div style="flex:1">'+
+          '<div class="user-name">'+(u.full_name||"—")+(u.is_admin?' <span style="font-size:10px;background:rgba(239,68,68,.15);color:#f87171;padding:2px 6px;border-radius:4px">Admin</span>':'')+' <span style="font-size:10px;color:var(--sky)">VIP '+u.vip_level+'</span></div>'+
+          '<div class="user-meta">'+u.email+' · '+new Date(u.created_at).toLocaleDateString()+'</div>'+
+        '</div>'+
+        '<div class="user-bal">₦'+Number(u.wallets?.balance||0).toLocaleString()+'</div>'+
+      '</div>';
+    }).join("");
+  }
+
+  window.filterUsers=function(q){
+    if(!q){ renderUsers(allUsers); return; }
+    var f=q.toLowerCase();
+    renderUsers(allUsers.filter(function(u){return (u.full_name||"").toLowerCase().includes(f)||(u.email||"").toLowerCase().includes(f);}));
+  };
+
+  /* ── Messages ── */
+  window.onTargetChange=function(v){ document.getElementById("userSearchWrap").style.display=v==="specific"?"block":"none"; };
+
+  window.searchMsgUsers=async function(q){
+    var list=document.getElementById("msgUserList");
+    if(q.length<2){ list.style.display="none"; return; }
+    var filtered=allUsers.filter(function(u){return (u.full_name||"").toLowerCase().includes(q.toLowerCase())||(u.email||"").toLowerCase().includes(q.toLowerCase());}).slice(0,5);
+    if(!filtered.length){ list.style.display="none"; return; }
+    list.style.display="block";
+    list.innerHTML=filtered.map(function(u){
+      return '<div class="msg-user-opt" onclick="selectMsgUser(\''+u.id+'\',\''+((u.full_name||u.email)||"User")+'\')">'+
+        (u.full_name||"—")+" — "+u.email+'</div>';
+    }).join("");
+  };
+
+  window.selectMsgUser=function(id,name){
+    document.getElementById("msgUserId").value=id;
+    document.getElementById("msgUserSearch").value=name;
+    document.getElementById("msgUserList").style.display="none";
+  };
+
+  window.sendMessage=async function(){
+    var al=document.getElementById("msgAlert");
+    var target=document.getElementById("msgTarget").value;
+    var title=document.getElementById("msgTitle").value.trim();
+    var content=document.getElementById("msgContent").value.trim();
+    var userId=target==="all"?null:document.getElementById("msgUserId").value;
+    if(target==="specific"&&!userId){ al.textContent="Select a user"; al.className="alert alert-error show"; return; }
+    if(!title||!content){ al.textContent="Title and message are required"; al.className="alert alert-error show"; return; }
+    al.className="alert";
+    var r=await fetch("/api/admin?action=send-message",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:userId,title,content,admin_id:adminId})});
+    var d=await r.json();
+    if(d.ok){
+      window.VitelAuth.toast("✅ Message sent!");
+      document.getElementById("msgTitle").value=""; document.getElementById("msgContent").value="";
+      document.getElementById("msgUserId").value=""; document.getElementById("msgUserSearch").value="";
+      al.className="alert";
+    } else {
+      al.textContent=d.error||"Error"; al.className="alert alert-error show";
+    }
+  };
+
+  /* ── Method ── */
+  async function loadMethod(){
+    var r=await fetch("/api/deposit?action=method");
+    var d=await r.json();
+    applyMethod(d.method||"manual");
+  }
+
+  function applyMethod(m){
+    ["manual","paystack","ipayng"].forEach(function(x){document.getElementById("m-"+x).className="m-btn"+(m===x?" on-"+m:"");});
+    var msgs={manual:"🏦 Users are paying via manual bank transfer",paystack:"✅ Users are paying via Paystack",ipayng:"⚡ Users are paying via iPayNG"};
+    document.getElementById("mStatus").textContent=msgs[m]||"";
+  }
+
+  window.setMethod=async function(m){
+    document.getElementById("mStatus").textContent="Switching…";
+    var r=await fetch("/api/admin?action=set-method",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({method:m,admin_id:adminId})});
+    var d=await r.json();
+    if(d.ok){ applyMethod(m); window.VitelAuth.toast("✅ Switched to "+m); }
+    else { window.VitelAuth.toast("❌ "+d.error); }
+  };
+
+  window.grantAdmin=async function(){
+    var val=document.getElementById("adminUserId").value.trim();
+    if(!val){ window.VitelAuth.toast("Enter a user ID"); return; }
+    if(!confirm("Grant admin access to this user?")) return;
+    var r=await fetch("/api/admin?action=set-admin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target_user_id:val,is_admin:true,admin_id:adminId})});
+    var d=await r.json();
+    window.VitelAuth.toast(d.ok?"✅ Admin access granted":"❌ "+d.error);
+  };
+
+  window.copyTxt=function(t){ navigator.clipboard.writeText(t).then(function(){window.VitelAuth.toast("Copied!");}); };
+})();
+</script>
+</body>
+</html>
