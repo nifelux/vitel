@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — Monthly Salary</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    .salary-hero { background:linear-gradient(135deg,var(--purple),var(--sky)); padding:32px 24px; color:#fff; text-align:center; }
+    .salary-amount { font-size:44px; font-weight:800; margin:10px 0; }
+    .salary-btn { background:#fff; color:var(--purple); border:none; padding:15px 40px; border-radius:50px; font-size:17px; font-weight:800; cursor:pointer; margin-top:20px; width:100%; }
+    .salary-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .info-row { display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid var(--border); }
+    .info-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  </style>
+</head>
+<body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
+<div class="page-wrap">
+  <div class="topbar">
+    <a class="back-btn" href="profile.html">‹</a>
+    <span class="topbar-title">💰 Monthly Salary</span>
+    <div></div>
+  </div>
+
+  <div class="salary-hero">
+    <div>💰</div>
+    <div style="font-size:13px;opacity:.8;margin-top:8px">Estimated Salary</div>
+    <div class="salary-amount" id="salaryAmt">₦0.00</div>
+    <div style="font-size:13px;opacity:.75" id="salaryStatus">Calculating…</div>
+    <button class="salary-btn" id="salaryBtn" onclick="claimSalary()" disabled>Claim Salary</button>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <div class="info-row">
+        <div class="info-icon" style="background:var(--purple-light)">📊</div>
+        <div><div style="font-size:14px;font-weight:600">5% of Team Deposits</div><div style="font-size:12px;color:var(--muted)">Earn 5% of all L1+L2+L3 deposits this month</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon" style="background:var(--sky-light)">📅</div>
+        <div><div style="font-size:14px;font-weight:600">Claim on the 5th</div><div style="font-size:12px;color:var(--muted)">Salary is available from the 5th of each month</div></div>
+      </div>
+      <div class="info-row" style="border-bottom:none">
+        <div class="info-icon" style="background:#D1FAE5">👥</div>
+        <div><div style="font-size:14px;font-weight:600">3 Levels Deep</div><div style="font-size:12px;color:var(--muted)">Counts deposits from your L1, L2, and L3 team</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3 style="font-size:14px;font-weight:700;margin-bottom:10px">Claim History</h3>
+    <div class="card" id="histList"><div class="loader-wrap"><div class="loader"></div></div></div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="assets/js/supabase.js" defer></script>
+<script src="assets/js/auth.js" defer></script>
+<script>
+(function(){
+  var uid="";
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+  waitSb(async function(){
+    var s=await window.VitelAuth.requireAuth(); if(!s)return;
+    uid=s.user.id;
+
+    var r=await fetch("/api/bonus?action=salary-status&user_id="+uid);
+    var d=await r.json();
+    var btn=document.getElementById("salaryBtn");
+    var status=document.getElementById("salaryStatus");
+    var day=new Date().getDate();
+
+    document.getElementById("salaryAmt").textContent=window.VitelAuth.money(d.amount||0);
+
+    if(d.claimed){
+      btn.textContent="✅ Claimed for "+d.month; btn.disabled=true;
+      status.textContent="Already claimed this month";
+    } else if(!d.can_claim){
+      btn.textContent="Available from 5th"; btn.disabled=true;
+      status.textContent="Opens on the 5th · Today is the "+day+"th";
+    } else if(d.amount<=0){
+      btn.textContent="No earnings yet"; btn.disabled=true;
+      status.textContent="Your team has no qualifying deposits this month";
+    } else {
+      btn.disabled=false; btn.textContent="Claim "+window.VitelAuth.money(d.amount);
+      status.textContent="Ready to claim!";
+    }
+
+    var {data:hist}=await window.sb.from("monthly_salary_claims").select("*").eq("user_id",uid).order("claimed_at",{ascending:false});
+    var hl=document.getElementById("histList");
+    if(!hist||!hist.length){
+      hl.innerHTML='<div class="empty"><p>No salary claims yet.</p></div>';
+    } else {
+      hl.innerHTML=hist.map(function(c){
+        return '<div class="list-item">'+
+          '<div class="li-left"><div class="li-title">'+c.month+'</div><div class="li-sub">'+new Date(c.claimed_at).toDateString()+'</div></div>'+
+          '<div class="li-right"><div class="li-amount credit">+'+window.VitelAuth.money(c.amount)+'</div></div>'+
+        '</div>';
+      }).join("");
+    }
+  });
+
+  window.claimSalary=async function(){
+    var btn=document.getElementById("salaryBtn");
+    btn.disabled=true; btn.textContent="Claiming…";
+    var r=await fetch("/api/bonus?action=monthly-salary",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:uid})});
+    var d=await r.json();
+    if(d.ok){
+      window.VitelAuth.toast("🎉 Salary of "+window.VitelAuth.money(d.amount)+" credited!");
+      btn.textContent="✅ Claimed!";
+    } else {
+      window.VitelAuth.toast(d.error||"Cannot claim now");
+      btn.disabled=false; btn.textContent="Claim Salary";
+    }
+  };
+})();
+</script>
+</body>
+        </html>
+                                                                         
