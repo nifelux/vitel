@@ -191,6 +191,29 @@
   </div>
 </div>
 
+<!-- Welcome modal -->
+<div id="welcomeOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:300;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px)">
+  <div id="welcomeCard" style="background:#fff;border-radius:24px;max-width:380px;width:100%;overflow:hidden;transform:scale(.92);opacity:0;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;box-shadow:0 24px 60px rgba(0,0,0,.3)">
+    <div style="background:linear-gradient(135deg,#7C3AED 0%,#0EA5E9 100%);padding:32px 24px 28px;text-align:center;color:#fff;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-40px;right:-40px;width:150px;height:150px;background:rgba(255,255,255,.08);border-radius:50%"></div>
+      <button onclick="closeWelcome()" style="position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2">✕</button>
+      <div style="font-size:44px;position:relative;z-index:1">👋</div>
+      <div style="font-size:20px;font-weight:800;margin-top:10px;position:relative;z-index:1">Welcome to Vitel<span id="welcomeUserName"></span>!</div>
+      <div style="font-size:13px;opacity:.85;margin-top:6px;position:relative;z-index:1">We're glad to have you here</div>
+    </div>
+    <div style="padding:22px 24px 24px">
+      <p style="font-size:14px;color:#475569;line-height:1.6;margin-bottom:18px;text-align:center">
+        Join our official Telegram community for instant updates, payment proofs, withdrawal alerts, and to connect with other members.
+      </p>
+      <a href="https://t.me/vitelwireless" target="_blank" rel="noopener"
+         style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:50px;background:linear-gradient(135deg,#7C3AED,#0EA5E9);color:#fff;font-size:15px;font-weight:700;text-decoration:none;box-shadow:0 6px 18px rgba(124,58,237,.3)">
+        ✈️ Join Telegram Group
+      </a>
+      <button onclick="closeWelcome()" style="width:100%;padding:12px;border:none;background:none;color:#94A3B8;font-size:13px;font-weight:600;cursor:pointer;margin-top:10px">Maybe later</button>
+    </div>
+  </div>
+</div>
+
 <!-- Bottom nav -->
 <nav class="bottom-nav">
   <button class="nav-item active" onclick="location.href='dashboard.html'">
@@ -223,6 +246,7 @@
     var uid = s.user.id;
 
     await window.VitelAuth.loadProfile(uid);
+    maybeShowWelcome(uid);
 
     // Wallet
     var {data:w} = await window.sb.from("wallets").select("*").eq("user_id",uid).single();
@@ -281,6 +305,36 @@
       .or("user_id.eq."+uid+",user_id.is.null").eq("is_read",false);
     if(count>0){ var b=document.getElementById("notifBadge"); b.style.display="flex"; b.textContent=count>9?"9+":count; }
   });
+
+  /* ── Welcome modal — shows once per device until dismissed ── */
+  function maybeShowWelcome(uid){
+    var seenKey = "vitel_welcome_seen_" + uid;
+    if(localStorage.getItem(seenKey)) return;
+
+    var nameEl = document.getElementById("welcomeUserName");
+    var fullName = document.querySelector('[data-auth="full_name"]')?.textContent;
+    nameEl.textContent = (fullName && fullName !== "User") ? ", " + fullName.split(" ")[0] : "";
+
+    setTimeout(function(){
+      var overlay = document.getElementById("welcomeOverlay");
+      var card = document.getElementById("welcomeCard");
+      overlay.style.display = "flex";
+      requestAnimationFrame(function(){
+        card.style.transform = "scale(1)";
+        card.style.opacity = "1";
+      });
+    }, 700);
+
+    localStorage.setItem(seenKey, "1");
+  }
+
+  window.closeWelcome = function(){
+    var overlay = document.getElementById("welcomeOverlay");
+    var card = document.getElementById("welcomeCard");
+    card.style.transform = "scale(.92)";
+    card.style.opacity = "0";
+    setTimeout(function(){ overlay.style.display = "none"; }, 200);
+  };
 })();
 </script>
 </body>
