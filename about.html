@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — About Us</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',sans-serif;background:#F1F5F9;min-height:100vh}
+
+    .topbar{display:flex;align-items:center;gap:12px;padding:16px 20px;background:#fff;border-bottom:1px solid #E2E8F0;position:sticky;top:0;z-index:50}
+    .back-btn{width:36px;height:36px;border-radius:50%;background:#F1F5F9;border:none;display:flex;align-items:center;justify-content:center;font-size:20px;color:#0F172A;cursor:pointer;text-decoration:none;flex-shrink:0}
+    .topbar-title{font-size:17px;font-weight:700;color:#0F172A}
+
+    .hero{background:linear-gradient(135deg,#7C3AED 0%,#0EA5E9 100%);padding:40px 24px 48px;text-align:center;color:#fff;position:relative;overflow:hidden}
+    .hero::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:rgba(255,255,255,.07);border-radius:50%}
+    .hero::after{content:'';position:absolute;bottom:-40px;left:-40px;width:140px;height:140px;background:rgba(255,255,255,.05);border-radius:50%}
+    .hero-logo{font-size:52px;font-weight:800;letter-spacing:-1px;position:relative;z-index:1}
+    .hero-logo span{color:#93C5FD}
+    .hero-tagline{font-size:18px;font-weight:700;margin-top:8px;opacity:.9;position:relative;z-index:1}
+    .hero-tagline2{font-size:14px;opacity:.75;margin-top:4px;position:relative;z-index:1}
+    .launch-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);border-radius:30px;padding:7px 16px;font-size:12px;font-weight:700;margin-top:16px;position:relative;z-index:1}
+
+    .content{padding:20px 16px 40px}
+
+    .section-card{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:14px;overflow:hidden}
+    .sc-header{background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(14,165,233,.08));padding:14px 16px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;gap:10px}
+    .sc-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#0EA5E9);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+    .sc-title{font-size:14px;font-weight:800;color:#0F172A}
+    .sc-body{padding:14px 16px}
+    .sc-body p{font-size:13px;color:#475569;line-height:1.65}
+
+    .feature-list{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:4px}
+    .feature-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#334155;line-height:1.5}
+    .feature-list li::before{content:'✦';color:#7C3AED;font-size:11px;margin-top:2px;flex-shrink:0}
+
+    .network-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:4px}
+    .net-chip{border-radius:10px;padding:12px;text-align:center;font-size:12px;font-weight:700}
+    .net-mtn   {background:#FEF9C3;color:#713F12}
+    .net-airtel{background:#FEE2E2;color:#7F1D1D}
+    .net-glo   {background:#D1FAE5;color:#064E3B}
+    .net-9mob  {background:#E0F2FE;color:#0C4A6E}
+    .net-name{font-size:14px;margin-bottom:3px}
+    .net-sub{font-size:10px;opacity:.8;font-weight:500}
+
+    .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+    .stat-item{background:linear-gradient(135deg,rgba(124,58,237,.06),rgba(14,165,233,.06));border-radius:10px;padding:12px 8px;text-align:center}
+    .stat-val{font-size:18px;font-weight:800;color:#7C3AED}
+    .stat-lbl{font-size:10px;color:#64748B;margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
+
+    .invest-note{background:linear-gradient(135deg,#EDE9FE,#E0F2FE);border-radius:12px;padding:16px;margin-top:4px}
+    .invest-note p{font-size:13px;color:#334155;line-height:1.65}
+    .invest-note strong{color:#7C3AED}
+  </style>
+</head>
+<body>
+<div style="max-width:480px;margin:0 auto;min-height:100vh;background:#F1F5F9;padding-bottom:30px">
+  <div class="topbar">
+    <a class="back-btn" href="profile.html">‹</a>
+    <span class="topbar-title">ℹ️ About Vitel</span>
+  </div>
+
+  <div class="hero">
+    <div class="hero-logo">⚡ Vitel</div>
+    <div class="hero-tagline">"Blue is Here"</div>
+    <div class="hero-tagline2">Everything Connected</div>
+    <div class="launch-pill">🇳🇬 Nigeria's First MVNO · Launched Oct 30, 2025</div>
+  </div>
+
+  <div class="content">
+
+    <!-- Who we are -->
+    <div class="section-card">
+      <div class="sc-header">
+        <div class="sc-icon">📡</div>
+        <div class="sc-title">Who We Are</div>
+      </div>
+      <div class="sc-body">
+        <p>Vitel Wireless is <strong>Nigeria's first Mobile Virtual Network Operator (MVNO)</strong> — a brand new blue network running on the <strong>0712 prefix</strong>, officially launched on <strong>October 30, 2025</strong>.</p>
+        <p style="margin-top:10px">Unlike traditional telcos, Vitel doesn't build its own towers or infrastructure. Instead, we roam and interconnect across Nigeria's four major networks, bringing you the best coverage at the best price.</p>
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div class="section-card">
+      <div class="sc-header">
+        <div class="sc-icon">🔗</div>
+        <div class="sc-title">Powered by Nigeria's Big 4</div>
+      </div>
+      <div class="sc-body">
+        <p style="margin-bottom:10px">No new towers needed. Vitel piggybacks on existing infrastructure via roaming and interconnection agreements:</p>
+        <div class="network-grid">
+          <div class="net-chip net-mtn"><div class="net-name">MTN</div><div class="net-sub">Main backbone</div></div>
+          <div class="net-chip net-airtel"><div class="net-name">Airtel</div><div class="net-sub">Extended reach</div></div>
+          <div class="net-chip net-glo"><div class="net-name">Glo</div><div class="net-sub">Local coverage</div></div>
+          <div class="net-chip net-9mob"><div class="net-name">9mobile</div><div class="net-sub">Data roaming</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- What we offer -->
+    <div class="section-card">
+      <div class="sc-header">
+        <div class="sc-icon">⚡</div>
+        <div class="sc-title">What We Offer</div>
+      </div>
+      <div class="sc-body">
+        <ul class="feature-list">
+          <li>Cheap calls and data plans for everyday Nigerians</li>
+          <li>Closed User Group (CUG) plans for businesses and organisations</li>
+          <li>Staff tracking and fleet management tools</li>
+          <li>Personal safety app integrated with the network</li>
+          <li>e-SIM support — no physical SIM needed</li>
+          <li>0712 numbers — Nigeria's newest prefix</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="section-card">
+      <div class="sc-header">
+        <div class="sc-icon">📊</div>
+        <div class="sc-title">Vitel by Numbers</div>
+      </div>
+      <div class="sc-body">
+        <div class="stat-row">
+          <div class="stat-item"><div class="stat-val">#1</div><div class="stat-lbl">MVNO in Nigeria</div></div>
+          <div class="stat-item"><div class="stat-val">4</div><div class="stat-lbl">Partner Networks</div></div>
+          <div class="stat-item"><div class="stat-val">0712</div><div class="stat-lbl">Our Prefix</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Investment platform note -->
+    <div class="section-card">
+      <div class="sc-header">
+        <div class="sc-icon">💰</div>
+        <div class="sc-title">About This Platform</div>
+      </div>
+      <div class="sc-body">
+        <div class="invest-note">
+          <p>This is the <strong>Vitel Investment Platform</strong> — an exclusive rewards and income program for Vitel subscribers and partners. Earn daily income, refer friends, and grow your earnings while being part of Nigeria's telecom revolution.</p>
+          <p style="margin-top:10px"><strong>Together, we're building Nigeria's most connected future.</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tagline footer -->
+    <div style="text-align:center;padding:20px 0 10px">
+      <div style="font-size:22px;font-weight:800;background:linear-gradient(135deg,#7C3AED,#0EA5E9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">⚡ Blue is Here</div>
+      <div style="font-size:13px;color:#64748B;margin-top:4px">Everything Connected · Vitel Wireless Nigeria</div>
+    </div>
+
+  </div>
+</div>
+</body>
+                                    </html>
+  
