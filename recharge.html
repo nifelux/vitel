@@ -79,7 +79,7 @@
     <input class="field-input" type="number" id="customAmt" placeholder="Enter amount (min ₦500)" oninput="onCustomAmt(this.value)" />
   </div>
 
-  <div class="method-card" style="margin-top:16px">
+  <div class="method-card" id="methodCard" style="margin-top:16px">
     <div id="methodBadge" class="method-badge mb-manual">🏦 Manual Bank Transfer</div>
     <div id="methodContent">
       <div class="transfer-info">
@@ -95,6 +95,20 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Shown only for Paystack — no static account number needed -->
+  <div id="paystackNote" style="display:none;margin:16px;background:var(--sky-light);border-radius:var(--radius-sm);padding:16px;text-align:center">
+    <div style="font-size:28px;margin-bottom:8px">💳</div>
+    <div style="font-size:14px;font-weight:700;color:var(--sky-dark);margin-bottom:4px">Secure Card & Bank Payment</div>
+    <div style="font-size:12px;color:var(--muted)">Click Continue to pay instantly via card, bank transfer, or USSD through Paystack's secure checkout.</div>
+  </div>
+
+  <!-- Shown only for iPayNG -->
+  <div id="ipayngNote" style="display:none;margin:16px;background:var(--purple-light);border-radius:var(--radius-sm);padding:16px;text-align:center">
+    <div style="font-size:28px;margin-bottom:8px">⚡</div>
+    <div style="font-size:14px;font-weight:700;color:var(--purple);margin-bottom:4px">iPayNG Bank Transfer</div>
+    <div style="font-size:12px;color:var(--muted)">Click Continue to get your transfer details via iPayNG.</div>
   </div>
 
   <div class="narration-box" id="narrationBox" style="display:none">
@@ -159,9 +173,20 @@
 
   function applyMethod(m){
     var badge=document.getElementById("methodBadge");
-    if(m==="paystack"){ badge.className="method-badge mb-paystack"; badge.textContent="✅ Paystack — Card & Bank"; }
-    else if(m==="ipayng"){ badge.className="method-badge mb-ipayng"; badge.textContent="⚡ iPayNG Transfer"; }
-    else { badge.className="method-badge mb-manual"; badge.textContent="🏦 Manual Bank Transfer"; }
+    var card = document.getElementById("methodCard");
+    var pNote = document.getElementById("paystackNote");
+    var iNote = document.getElementById("ipayngNote");
+
+    if(m==="paystack"){
+      badge.className="method-badge mb-paystack"; badge.textContent="✅ Paystack — Card & Bank";
+      card.style.display="none"; pNote.style.display="block"; iNote.style.display="none";
+    } else if(m==="ipayng"){
+      badge.className="method-badge mb-ipayng"; badge.textContent="⚡ iPayNG Transfer";
+      card.style.display="none"; pNote.style.display="none"; iNote.style.display="block";
+    } else {
+      badge.className="method-badge mb-manual"; badge.textContent="🏦 Manual Bank Transfer";
+      card.style.display="block"; pNote.style.display="none"; iNote.style.display="none";
+    }
   }
 
   window.pickAmt=function(el){
