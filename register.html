@@ -176,37 +176,40 @@
 
     try {
 
-      /* look up referrer */
-      var referredBy = null;
+      /* Pre-fetch referrer name for the welcome banner only — the
+         actual referred_by assignment now happens server-side via
+         the signup trigger (see fix_referral_signup.sql), since
+         RLS blocks a client-side write here whenever email
+         confirmation is required and no session exists yet. */
       if(ref){
         var {data:refProfile} = await window.sb
           .from("profiles").select("id,full_name")
           .eq("referral_code", ref).single();
         if(refProfile){
-          referredBy = refProfile.id;
           document.getElementById("refName").textContent = refProfile.full_name || "a friend";
           document.getElementById("refBox").style.display = "block";
         }
       }
 
-      /* sign up */
-      var {data, error} = await window.sb.auth.signUp({email, password:pass});
+      /* sign up — full_name, phone, and referral_code are passed as
+         metadata and picked up server-side by the handle_new_user()
+         trigger, which runs with elevated privileges and isn't
+         affected by whether a session exists yet. */
+      var {data, error} = await window.sb.auth.signUp({
+        email,
+        password: pass,
+        options: {
+          data: {
+            full_name: name,
+            phone: phone,
+            referral_code: ref || null,
+          }
+        }
+      });
 
       if(error){
         showAlert(error.message || "Registration failed. Try again.", "error");
         btn.disabled = false; btn.textContent = "Create Account"; return;
-      }
-
-      var userId = data?.user?.id;
-
-      /* save profile */
-      if(userId){
-        await window.sb.from("profiles").upsert({
-          id: userId,
-          full_name: name,
-          phone: phone,
-          referred_by: referredBy || null,
-        }, { onConflict: "id" });
       }
 
       /* check if email confirmation is required */
@@ -242,5 +245,4 @@
 })();
 </script>
 </body>
-  </html>
-  
+</html>
