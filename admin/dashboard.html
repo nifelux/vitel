@@ -111,6 +111,7 @@
   <button class="anav" onclick="showPage('products',this)">📦 Products</button>
   <button class="anav" onclick="showPage('users',this)">👥 Users</button>
   <button class="anav" onclick="showPage('messages',this)">✉️ Messages</button>
+  <button class="anav" onclick="showPage('giftcodes',this)">🎁 Gift Codes</button>
   <button class="anav" onclick="showPage('settings',this)">⚙️ Settings</button>
 </div>
 
@@ -131,6 +132,7 @@
         <button onclick="showPage('withdrawals',document.querySelector('.anav:nth-child(3)'))" style="padding:12px;border-radius:10px;background:rgba(251,146,60,.1);color:#FB923C;border:none;font-weight:700;font-size:13px;cursor:pointer">💸 Review Withdrawals</button>
         <button onclick="showPage('products',document.querySelector('.anav:nth-child(4)'))" style="padding:12px;border-radius:10px;background:rgba(14,165,233,.1);color:var(--sky);border:none;font-weight:700;font-size:13px;cursor:pointer">📦 Manage Products</button>
         <button onclick="showPage('messages',document.querySelector('.anav:nth-child(6)'))" style="padding:12px;border-radius:10px;background:rgba(139,92,246,.1);color:#a78bfa;border:none;font-weight:700;font-size:13px;cursor:pointer">✉️ Send Message</button>
+        <button onclick="showPage('giftcodes',document.querySelector('.anav:nth-child(7)'))" style="padding:12px;border-radius:10px;background:rgba(236,72,153,.1);color:#f472b6;border:none;font-weight:700;font-size:13px;cursor:pointer">🎁 Gift Codes</button>
       </div>
     </div>
   </div>
@@ -220,9 +222,10 @@
 
   <!-- ═══ MESSAGES ═══ -->
   <div class="apage" id="page-messages">
-    <div class="a-card">
-      <div class="a-card-title">Send Message to Users</div>
+    <div class="a-card" style="margin-bottom:14px">
+      <div class="a-card-title" id="msgFormTitle">Send Message to Users</div>
       <div style="padding:14px">
+        <input type="hidden" id="editMsgId"/>
         <div class="a-field">
           <label class="a-label">Recipient</label>
           <select class="a-select" id="msgTarget" onchange="onTargetChange(this.value)">
@@ -238,14 +241,63 @@
         </div>
         <div class="a-field"><label class="a-label">Title</label><input class="a-input" id="msgTitle" placeholder="Message title"/></div>
         <div class="a-field"><label class="a-label">Message</label><textarea class="a-input" id="msgContent" rows="4" placeholder="Write your message…" style="resize:vertical"></textarea></div>
-        <button onclick="sendMessage()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--purple),var(--sky));color:#fff;font-weight:700;font-size:15px;cursor:pointer">Send Message</button>
+        <div style="display:flex;gap:8px">
+          <button onclick="sendMessage()" id="msgSubmitBtn" style="flex:1;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--purple),var(--sky));color:#fff;font-weight:700;font-size:15px;cursor:pointer">Send Message</button>
+          <button onclick="cancelEditMsg()" id="msgCancelBtn" style="display:none;padding:12px 18px;border-radius:10px;border:1.5px solid #334155;background:transparent;color:#94A3B8;font-weight:600;font-size:14px;cursor:pointer">Cancel</button>
+        </div>
         <div id="msgAlert" class="alert" style="margin-top:10px"></div>
       </div>
+    </div>
+
+    <div class="a-card">
+      <div class="a-card-title">
+        Sent Messages
+        <button class="refresh-btn" onclick="loadSentMessages()">↻ Refresh</button>
+      </div>
+      <div id="sentMsgList"><div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ GIFT CODES ═══ -->
+  <div class="apage" id="page-giftcodes">
+    <div class="a-card" style="margin-bottom:14px">
+      <div class="a-card-title">Generate Gift Code</div>
+      <div style="padding:14px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="a-field">
+            <label class="a-label">Code <button onclick="randomizeCode()" style="background:none;border:none;color:var(--sky);font-size:11px;font-weight:700;cursor:pointer;margin-left:4px">🎲 Random</button></label>
+            <input class="a-input" id="giftCode" placeholder="e.g. VITEL2026" style="text-transform:uppercase;letter-spacing:.06em" oninput="this.value=this.value.toUpperCase()"/>
+          </div>
+          <div class="a-field">
+            <label class="a-label">Amount (₦)</label>
+            <input class="a-input" id="giftAmount" type="number" placeholder="500"/>
+          </div>
+          <div class="a-field">
+            <label class="a-label">Max Uses</label>
+            <input class="a-input" id="giftMaxUses" type="number" placeholder="1" value="1"/>
+          </div>
+          <div class="a-field">
+            <label class="a-label">Expires <span style="color:#64748B;font-weight:400">(optional)</span></label>
+            <input class="a-input" id="giftExpiry" type="date"/>
+          </div>
+        </div>
+        <button onclick="createGiftCode()" id="giftCreateBtn" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--purple),var(--sky));color:#fff;font-weight:700;font-size:15px;cursor:pointer;margin-top:4px">🎁 Generate Code</button>
+        <div id="giftAlert" class="alert" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="a-card">
+      <div class="a-card-title">
+        All Gift Codes
+        <button class="refresh-btn" onclick="loadGiftCodes()">↻ Refresh</button>
+      </div>
+      <div id="giftCodeList"><div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div></div>
     </div>
   </div>
 
   <!-- ═══ SETTINGS ═══ -->
   <div class="apage" id="page-settings">
+
     <div class="a-card" style="margin-bottom:14px">
       <div class="a-card-title">Deposit Method</div>
       <div class="method-grid">
@@ -309,6 +361,8 @@
     if(id==="withdrawals") loadWithdrawals();
     if(id==="products") loadProducts();
     if(id==="users") loadUsers();
+    if(id==="messages") loadSentMessages();
+    if(id==="giftcodes") loadGiftCodes();
   };
 
   /* ── Stats ── */
@@ -329,6 +383,10 @@
     el.innerHTML='<div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div>';
     var r=await fetch("/api/admin?action=deposits&status="+depFilter+"&admin_id="+adminId);
     var d=await r.json();
+    if(!d.ok){
+      el.innerHTML='<div style="text-align:center;color:#f87171;padding:24px 16px;font-size:13px">⚠️ Failed to load: '+(d.error||"Unknown error")+'</div>';
+      return;
+    }
     var deps=d.deposits||[];
     if(!deps.length){ el.innerHTML='<div style="text-align:center;color:#64748B;padding:32px;font-size:14px">No deposits found.</div>'; return; }
     el.innerHTML=deps.map(function(dep){
@@ -368,6 +426,10 @@
     el.innerHTML='<div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div>';
     var r=await fetch("/api/admin?action=withdrawals&status="+wFilter+"&admin_id="+adminId);
     var d=await r.json();
+    if(!d.ok){
+      el.innerHTML='<div style="text-align:center;color:#f87171;padding:24px 16px;font-size:13px">⚠️ Failed to load: '+(d.error||"Unknown error")+'</div>';
+      return;
+    }
     var ws=d.withdrawals||[];
     if(!ws.length){ el.innerHTML='<div style="text-align:center;color:#64748B;padding:32px;font-size:14px">No withdrawals found.</div>'; return; }
     el.innerHTML=ws.map(function(w){
@@ -538,19 +600,213 @@
     var title=document.getElementById("msgTitle").value.trim();
     var content=document.getElementById("msgContent").value.trim();
     var userId=target==="all"?null:document.getElementById("msgUserId").value;
-    if(target==="specific"&&!userId){ al.textContent="Select a user"; al.className="alert alert-error show"; return; }
+    var editId=document.getElementById("editMsgId").value;
+
+    if(!editId && target==="specific" && !userId){ al.textContent="Select a user"; al.className="alert alert-error show"; return; }
     if(!title||!content){ al.textContent="Title and message are required"; al.className="alert alert-error show"; return; }
     al.className="alert";
-    var r=await fetch("/api/admin?action=send-message",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user_id:userId,title,content,admin_id:adminId})});
+
+    var btn=document.getElementById("msgSubmitBtn");
+    btn.disabled=true; btn.textContent=editId?"Saving…":"Sending…";
+
+    var action = editId ? "update-message" : "send-message";
+    var body   = editId
+      ? { message_id:editId, title, content, admin_id:adminId }
+      : { user_id:userId, title, content, admin_id:adminId };
+
+    var r=await fetch("/api/admin?action="+action,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     var d=await r.json();
+
     if(d.ok){
-      window.VitelAuth.toast("✅ Message sent!");
-      document.getElementById("msgTitle").value=""; document.getElementById("msgContent").value="";
-      document.getElementById("msgUserId").value=""; document.getElementById("msgUserSearch").value="";
-      al.className="alert";
+      window.VitelAuth.toast(editId ? "✅ Message updated!" : "✅ Message sent!");
+      cancelEditMsg();
+      loadSentMessages();
     } else {
       al.textContent=d.error||"Error"; al.className="alert alert-error show";
     }
+    btn.disabled=false; btn.textContent=editId?"Update Message":"Send Message";
+  };
+
+  window.cancelEditMsg=function(){
+    document.getElementById("editMsgId").value="";
+    document.getElementById("msgTitle").value="";
+    document.getElementById("msgContent").value="";
+    document.getElementById("msgUserId").value="";
+    document.getElementById("msgUserSearch").value="";
+    document.getElementById("msgTarget").value="all";
+    document.getElementById("userSearchWrap").style.display="none";
+    document.getElementById("msgFormTitle").textContent="Send Message to Users";
+    document.getElementById("msgSubmitBtn").textContent="Send Message";
+    document.getElementById("msgCancelBtn").style.display="none";
+    document.getElementById("msgTarget").disabled=false;
+    document.getElementById("msgAlert").className="alert";
+  };
+
+  /* ── Sent messages list ── */
+  window.loadSentMessages=async function(){
+    var el=document.getElementById("sentMsgList");
+    el.innerHTML='<div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div>';
+    var r=await fetch("/api/admin?action=messages&admin_id="+adminId);
+    var d=await r.json();
+    if(!d.ok){
+      el.innerHTML='<div style="text-align:center;color:#f87171;padding:24px 16px;font-size:13px">⚠️ Failed to load: '+(d.error||"Unknown error")+'</div>';
+      return;
+    }
+    var msgs=d.messages||[];
+    if(!msgs.length){
+      el.innerHTML='<div style="text-align:center;color:#64748B;padding:24px;font-size:14px">No messages sent yet.</div>';
+      return;
+    }
+    el.innerHTML=msgs.map(function(m){
+      var recipient = m.user_id ? (m.recipient?.full_name||m.recipient?.email||"User") : "📢 Broadcast (All Users)";
+      var preview = m.content.length>90 ? m.content.slice(0,90)+"…" : m.content;
+      var safeTitle = m.title.replace(/'/g,"\\'");
+      var safeContent = m.content.replace(/'/g,"\\'").replace(/\n/g,"\\n");
+      return '<div class="dep-row">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+          '<div style="flex:1">'+
+            '<div class="dep-name">'+m.title+'</div>'+
+            '<div class="dep-meta">To: '+recipient+' · '+new Date(m.created_at).toLocaleString()+'</div>'+
+            '<div class="dep-meta" style="margin-top:6px;color:#94A3B8">'+preview+'</div>'+
+          '</div>'+
+          (m.is_read?'<span style="font-size:10px;color:#34D399;font-weight:700;flex-shrink:0;margin-left:8px">READ</span>':'<span style="font-size:10px;color:#FCD34D;font-weight:700;flex-shrink:0;margin-left:8px">UNREAD</span>')+
+        '</div>'+
+        '<div class="dep-actions">'+
+          '<button class="btn-approve" onclick="editMsg(\''+m.id+'\',\''+safeTitle+'\',\''+safeContent+'\',\''+(m.user_id||"")+'\',\''+(recipient.replace(/'/g,"\\'"))+'\')">✏️ Edit</button>'+
+          '<button class="btn-reject" onclick="deleteMsg(\''+m.id+'\',this)">🗑️ Delete</button>'+
+        '</div>'+
+      '</div>';
+    }).join("");
+  };
+
+  window.editMsg=function(id,title,content,userId,recipientName){
+    document.getElementById("editMsgId").value=id;
+    document.getElementById("msgTitle").value=title;
+    document.getElementById("msgContent").value=content.replace(/\\n/g,"\n");
+    document.getElementById("msgFormTitle").textContent="Edit Message";
+    document.getElementById("msgSubmitBtn").textContent="Update Message";
+    document.getElementById("msgCancelBtn").style.display="inline-block";
+    document.getElementById("msgTarget").disabled=true; // recipient can't change on edit
+
+    if(userId){
+      document.getElementById("msgTarget").value="specific";
+      document.getElementById("userSearchWrap").style.display="block";
+      document.getElementById("msgUserId").value=userId;
+      document.getElementById("msgUserSearch").value=recipientName;
+    } else {
+      document.getElementById("msgTarget").value="all";
+      document.getElementById("userSearchWrap").style.display="none";
+    }
+    window.scrollTo({top:0,behavior:"smooth"});
+  };
+
+  window.deleteMsg=async function(id,btn){
+    if(!confirm("Delete this message permanently?")) return;
+    btn.disabled=true; btn.textContent="Deleting…";
+    var r=await fetch("/api/admin?action=delete-message",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message_id:id,admin_id:adminId})});
+    var d=await r.json();
+    window.VitelAuth.toast(d.ok?"🗑️ Message deleted":"❌ "+d.error);
+    loadSentMessages();
+  };
+
+  /* ── Gift codes ── */
+  window.randomizeCode=function(){
+    var chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    var code="VTL-";
+    for(var i=0;i<6;i++) code+=chars[Math.floor(Math.random()*chars.length)];
+    document.getElementById("giftCode").value=code;
+  };
+
+  window.createGiftCode=async function(){
+    var al=document.getElementById("giftAlert");
+    var code=document.getElementById("giftCode").value.trim().toUpperCase();
+    var amount=document.getElementById("giftAmount").value;
+    var maxUses=document.getElementById("giftMaxUses").value||1;
+    var expiry=document.getElementById("giftExpiry").value;
+
+    if(!code){ al.textContent="Enter a gift code"; al.className="alert alert-error show"; return; }
+    if(!amount||Number(amount)<=0){ al.textContent="Enter a valid amount"; al.className="alert alert-error show"; return; }
+
+    var btn=document.getElementById("giftCreateBtn");
+    btn.disabled=true; btn.textContent="Generating…";
+    al.className="alert";
+
+    var r=await fetch("/api/admin?action=create-gift-code",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({code,amount,max_uses:maxUses,expires_at:expiry?new Date(expiry).toISOString():null,admin_id:adminId})
+    });
+    var d=await r.json();
+
+    if(d.ok){
+      window.VitelAuth.toast("🎁 Gift code "+d.code+" created!");
+      document.getElementById("giftCode").value="";
+      document.getElementById("giftAmount").value="";
+      document.getElementById("giftMaxUses").value="1";
+      document.getElementById("giftExpiry").value="";
+      al.className="alert";
+      loadGiftCodes();
+    } else {
+      al.textContent=d.error||"Error creating code"; al.className="alert alert-error show";
+    }
+    btn.disabled=false; btn.textContent="🎁 Generate Code";
+  };
+
+  window.loadGiftCodes=async function(){
+    var el=document.getElementById("giftCodeList");
+    el.innerHTML='<div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div>';
+    var r=await fetch("/api/admin?action=gift-codes&admin_id="+adminId);
+    var d=await r.json();
+    if(!d.ok){
+      el.innerHTML='<div style="text-align:center;color:#f87171;padding:24px 16px;font-size:13px">⚠️ Failed to load: '+(d.error||"Unknown error")+'</div>';
+      return;
+    }
+    var codes=d.codes||[];
+    if(!codes.length){
+      el.innerHTML='<div style="text-align:center;color:#64748B;padding:24px;font-size:14px">No gift codes yet. Generate one above.</div>';
+      return;
+    }
+    el.innerHTML=codes.map(function(c){
+      var used=c.uses>=c.max_uses;
+      var expired=c.expires_at && new Date(c.expires_at)<new Date();
+      var statusLabel = c.status==="active" && !used && !expired ? "ACTIVE" : used ? "FULLY USED" : expired ? "EXPIRED" : "INACTIVE";
+      var statusColor = statusLabel==="ACTIVE" ? "#34D399" : statusLabel==="FULLY USED" ? "#94A3B8" : "#f87171";
+      return '<div class="dep-row">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+          '<div>'+
+            '<div class="dep-name" style="font-family:monospace;letter-spacing:.05em">'+c.code+'</div>'+
+            '<div class="dep-meta">Created '+new Date(c.created_at).toLocaleDateString()+(c.expires_at?' · Expires '+new Date(c.expires_at).toLocaleDateString():'')+'</div>'+
+          '</div>'+
+          '<div style="text-align:right">'+
+            '<div class="dep-amt">₦'+Number(c.amount).toLocaleString()+'</div>'+
+            '<div style="font-size:11px;font-weight:700;color:'+statusColor+'">'+statusLabel+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="dep-meta" style="margin-top:6px">Used '+c.uses+' / '+c.max_uses+' times</div>'+
+        '<div class="dep-actions">'+
+          (c.status==="active"
+            ? '<button class="btn-reject" onclick="toggleGiftCode(\''+c.id+'\',\'inactive\',this)">⏸ Deactivate</button>'
+            : '<button class="btn-approve" onclick="toggleGiftCode(\''+c.id+'\',\'active\',this)">▶ Activate</button>')+
+          '<button class="btn-reject" onclick="deleteGiftCode(\''+c.id+'\',this)">🗑️ Delete</button>'+
+        '</div>'+
+      '</div>';
+    }).join("");
+  };
+
+  window.toggleGiftCode=async function(id,newStatus,btn){
+    btn.disabled=true;
+    var r=await fetch("/api/admin?action=toggle-gift-code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code_id:id,status:newStatus,admin_id:adminId})});
+    var d=await r.json();
+    window.VitelAuth.toast(d.ok?"✅ Updated":"❌ "+d.error);
+    loadGiftCodes();
+  };
+
+  window.deleteGiftCode=async function(id,btn){
+    if(!confirm("Delete this gift code permanently?")) return;
+    btn.disabled=true;
+    var r=await fetch("/api/admin?action=delete-gift-code",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code_id:id,admin_id:adminId})});
+    var d=await r.json();
+    window.VitelAuth.toast(d.ok?"🗑️ Deleted":"❌ "+d.error);
+    loadGiftCodes();
   };
 
   /* ── Method ── */
