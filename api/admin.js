@@ -4,14 +4,18 @@
  * GET  ?action=withdrawals&status=          → list withdrawals
  * GET  ?action=users                        → list users
  * GET  ?action=products                     → list products
+ * GET  ?action=messages                     → list sent messages
+ * GET  ?action=stats                        → dashboard stats
  * POST ?action=set-method                   → switch deposit method
  * POST ?action=process-deposit              → approve/reject deposit
  * POST ?action=process-withdrawal           → approve/reject withdrawal
  * POST ?action=send-message                 → send message to user(s)
+ * POST ?action=update-message               → edit an existing message
+ * POST ?action=delete-message               → delete a message
  * POST ?action=save-product                 → create/edit product
  * POST ?action=delete-product               → delete product
  * POST ?action=toggle-product               → lock/unlock product
- * POST ?action=set-user-admin               → make user admin
+ * POST ?action=set-admin                    → make user admin
  */
 const { createClient } = require("@supabase/supabase-js");
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -34,32 +38,70 @@ module.exports = async function(req, res) {
 
   // ── GETs ──────────────────────────────────────────────────────────────────
   if(req.method==="GET") {
+
     if(action==="deposits") {
       const status = req.query.status||"pending";
-      let q = supabase.from("deposits").select("*,profiles(full_name,email,referral_code)").order("created_at",{ascending:false}).limit(100);
+      // NOTE: "profiles!user_id" disambiguates the FK hint because deposits has
+      // TWO foreign keys to profiles (user_id AND approved_by). Without the
+      // hint, PostgREST throws an ambiguous-embed error and the row silently
+      // disappears from the result (which looked like "deposit not showing").
+      let q = supabase.from("deposits")
+        .select("*,profiles!user_id(full_name,email,referral_code)")
+        .order("created_at",{ascending:false})
+        .limit(100);
       if(status!=="all") q=q.eq("status",status);
       const { data,error } = await q;
       if(error) return res.status(500).json({ error:error.message });
       return res.json({ ok:true, deposits:data||[] });
     }
+
     if(action==="withdrawals") {
       const status = req.query.status||"pending";
-      let q = supabase.from("withdrawals").select("*,profiles(full_name,email)").order("created_at",{ascending:false}).limit(100);
+      // Same fix: withdrawals has user_id AND processed_by → both FK to profiles
+      let q = supabase.from("withdrawals")
+        .select("*,profiles!user_id(full_name,email)")
+        .order("created_at",{ascending:false})
+        .limit(100);
       if(status!=="all") q=q.eq("status",status);
       const { data,error } = await q;
       if(error) return res.status(500).json({ error:error.message });
       return res.json({ ok:true, withdrawals:data||[] });
     }
+
     if(action==="users") {
       const { data,error } = await supabase.from("profiles").select("*,wallets(balance)").order("created_at",{ascending:false}).limit(200);
       if(error) return res.status(500).json({ error:error.message });
       return res.json({ ok:true, users:data||[] });
     }
+
     if(action==="products") {
       const { data,error } = await supabase.from("products").select("*").order("sort_order");
       if(error) return res.status(500).json({ error:error.message });
       return res.json({ ok:true, products:data||[] });
     }
+
+    if(action==="messages") {
+      // messages has user_id (recipient) AND sender_id, both FK to profiles —
+      // alias + hint avoids the same ambiguous-embed problem.
+      const { data,error } = await supabase
+        .from("messages")
+        .select("*, recipient:profiles!user_id(full_name,email)")
+        .order("created_at",{ascending:false})
+        .limit(100);
+      if(error) return res.status(500).json({ error:error.message });
+      return res.json({ ok:true, messages:data||[] });
+    }
+
+    if(action==="gift-codes") {
+      const { data,error } = await supabase
+        .from("gift_codes")
+        .select("*")
+        .order("created_at",{ascending:false})
+        .limit(100);
+      if(error) return res.status(500).json({ error:error.message });
+      return res.json({ ok:true, codes:data||[] });
+    }
+
     if(action==="stats") {
       const [d,w,u,p] = await Promise.all([
         supabase.from("deposits").select("id",{count:"exact",head:true}).eq("status","pending"),
@@ -69,6 +111,7 @@ module.exports = async function(req, res) {
       ]);
       return res.json({ ok:true, pending_deposits:d.count||0, pending_withdrawals:w.count||0, total_users:u.count||0, active_products:p.count||0 });
     }
+
     return res.status(400).json({ error:"Unknown action" });
   }
 
@@ -108,8 +151,12 @@ module.exports = async function(req, res) {
     if(w.status!=="pending") return res.json({ ok:true, note:"already_processed" });
     await supabase.from("withdrawals").update({ status:act==="approve"?"approved":"rejected", note:note||null, processed_by:admin_id, processed_at:new Date().toISOString() }).eq("id",withdrawal_id);
     if(act==="reject") {
-      // Refund
-      await supabase.from("wallets").update({ balance:supabase.raw("balance + "+w.amount) }).eq("user_id",w.user_id);
+      // Refund the wallet (FIXED: supabase.raw() is not a real function in
+      // supabase-js v2 — that was a Knex-style call that would always throw).
+      const { data:wallet } = await supabase.from("wallets").select("balance,total_withdrawn").eq("user_id",w.user_id).single();
+      const newBal = Number(wallet?.balance||0) + Number(w.amount);
+      const newWithdrawn = Math.max(0, Number(wallet?.total_withdrawn||0) - Number(w.amount));
+      await supabase.from("wallets").update({ balance:newBal, total_withdrawn:newWithdrawn, updated_at:new Date().toISOString() }).eq("user_id",w.user_id);
       await supabase.from("wallet_transactions").insert({ user_id:w.user_id, type:"withdrawal_refund", amount:w.amount, description:"Withdrawal refunded" });
     }
     return res.json({ ok:true, action:act });
@@ -119,6 +166,22 @@ module.exports = async function(req, res) {
     const { user_id, title, content } = req.body;
     if(!title||!content) return res.status(400).json({ error:"title and content required" });
     const { error } = await supabase.from("messages").insert({ user_id:user_id||null, sender_id:admin_id, title, content });
+    if(error) return res.status(500).json({ error:error.message });
+    return res.json({ ok:true });
+  }
+
+  if(action==="update-message") {
+    const { message_id, title, content } = req.body;
+    if(!message_id||!title||!content) return res.status(400).json({ error:"message_id, title and content required" });
+    const { error } = await supabase.from("messages").update({ title, content }).eq("id",message_id);
+    if(error) return res.status(500).json({ error:error.message });
+    return res.json({ ok:true });
+  }
+
+  if(action==="delete-message") {
+    const { message_id } = req.body;
+    if(!message_id) return res.status(400).json({ error:"message_id required" });
+    const { error } = await supabase.from("messages").delete().eq("id",message_id);
     if(error) return res.status(500).json({ error:error.message });
     return res.json({ ok:true });
   }
@@ -154,6 +217,41 @@ module.exports = async function(req, res) {
     return res.json({ ok:true });
   }
 
+  if(action==="create-gift-code") {
+    const { code, amount, max_uses, expires_at } = req.body;
+    if(!code || !amount) return res.status(400).json({ error:"code and amount required" });
+    const cleanCode = String(code).trim().toUpperCase();
+    if(!cleanCode) return res.status(400).json({ error:"Invalid code" });
+    const { error } = await supabase.from("gift_codes").insert({
+      code: cleanCode,
+      amount: Number(amount),
+      max_uses: Number(max_uses||1),
+      uses: 0,
+      status: "active",
+      expires_at: expires_at || null,
+    });
+    if(error) {
+      if(error.code === "23505") return res.status(400).json({ error:"This code already exists. Choose a different one." });
+      return res.status(500).json({ error:error.message });
+    }
+    return res.json({ ok:true, code:cleanCode });
+  }
+
+  if(action==="toggle-gift-code") {
+    const { code_id, status } = req.body;
+    if(!code_id) return res.status(400).json({ error:"code_id required" });
+    const { error } = await supabase.from("gift_codes").update({ status }).eq("id",code_id);
+    if(error) return res.status(500).json({ error:error.message });
+    return res.json({ ok:true });
+  }
+
+  if(action==="delete-gift-code") {
+    const { code_id } = req.body;
+    if(!code_id) return res.status(400).json({ error:"code_id required" });
+    const { error } = await supabase.from("gift_codes").delete().eq("id",code_id);
+    if(error) return res.status(500).json({ error:error.message });
+    return res.json({ ok:true });
+  }
+
   return res.status(400).json({ error:"Unknown action: "+action });
 };
-  
