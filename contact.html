@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vitel — Contact Support</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="assets/css/styles.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',sans-serif;background:#F1F5F9;min-height:100vh}
+    .topbar{display:flex;align-items:center;gap:12px;padding:16px 20px;background:#fff;border-bottom:1px solid #E2E8F0;position:sticky;top:0;z-index:50}
+    .back-btn{width:36px;height:36px;border-radius:50%;background:#F1F5F9;border:none;font-size:20px;color:#0F172A;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center}
+    .topbar-title{font-size:17px;font-weight:700;color:#0F172A}
+
+    .hero{background:linear-gradient(135deg,#7C3AED,#0EA5E9);padding:32px 24px 40px;color:#fff;text-align:center}
+    .hero-icon{font-size:48px;margin-bottom:10px}
+    .hero-title{font-size:22px;font-weight:800}
+    .hero-sub{font-size:14px;opacity:.8;margin-top:4px}
+
+    .content{padding:16px;max-width:480px;margin:0 auto}
+
+    .contact-card{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:12px;overflow:hidden}
+    .contact-item{display:flex;align-items:center;gap:14px;padding:16px;border-bottom:1px solid #E2E8F0;cursor:pointer;text-decoration:none;transition:background .15s;-webkit-tap-highlight-color:transparent}
+    .contact-item:last-child{border-bottom:none}
+    .contact-item:active{background:#F8FAFC}
+    .ci-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .ci-purple{background:#EDE9FE}
+    .ci-green {background:#D1FAE5}
+    .ci-blue  {background:#E0F2FE}
+    .ci-orange{background:#FEF3C7}
+    .ci-title{font-size:15px;font-weight:700;color:#0F172A}
+    .ci-sub  {font-size:12px;color:#64748B;margin-top:2px}
+    .ci-arrow{color:#CBD5E1;font-size:18px;margin-left:auto}
+
+    .hours-card{background:linear-gradient(135deg,rgba(124,58,237,.06),rgba(14,165,233,.06));border-radius:14px;padding:16px;margin-bottom:12px;border:1.5px solid rgba(124,58,237,.15)}
+    .hours-title{font-size:13px;font-weight:700;color:#7C3AED;margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+    .hours-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0;border-bottom:1px solid rgba(124,58,237,.1)}
+    .hours-row:last-child{border-bottom:none}
+    .hours-day{color:#334155;font-weight:600}
+    .hours-time{color:#7C3AED;font-weight:700}
+
+    .form-card{background:#fff;border-radius:16px;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:16px;margin-bottom:12px}
+    .form-title{font-size:15px;font-weight:700;color:#0F172A;margin-bottom:14px}
+    .field{margin-bottom:12px}
+    .field label{display:block;font-size:12px;font-weight:600;color:#334155;margin-bottom:5px}
+    .field input,.field select,.field textarea{width:100%;padding:12px 14px;border:2px solid #E2E8F0;border-radius:10px;font-size:14px;color:#0F172A;background:#fff;outline:none;font-family:inherit}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:#7C3AED}
+    .field textarea{resize:vertical;min-height:100px}
+    .send-btn{width:100%;padding:14px;border:none;border-radius:50px;background:linear-gradient(135deg,#7C3AED,#0EA5E9);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+    .send-btn:disabled{opacity:.4;cursor:not-allowed}
+    .alert-box{padding:12px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:12px}
+    .a-success{background:#D1FAE5;color:#065F46}
+    .a-error  {background:#FEE2E2;color:#991B1B}
+  </style>
+</head>
+<body>
+<div style="max-width:480px;margin:0 auto;min-height:100vh;background:#F1F5F9;padding-bottom:30px">
+  <div class="topbar">
+    <a class="back-btn" href="profile.html">‹</a>
+    <span class="topbar-title">📞 Contact Support</span>
+  </div>
+
+  <div class="hero">
+    <div class="hero-icon">🤝</div>
+    <div class="hero-title">We're here to help</div>
+    <div class="hero-sub">Reach out through any channel below</div>
+  </div>
+
+  <div class="content">
+
+    <!-- Quick contact options -->
+    <div class="contact-card">
+      <a class="contact-item" href="https://wa.me/2347120000000" target="_blank">
+        <div class="ci-icon ci-green">💬</div>
+        <div>
+          <div class="ci-title">WhatsApp Support</div>
+          <div class="ci-sub">Chat with us instantly — fastest response</div>
+        </div>
+        <div class="ci-arrow">›</div>
+      </a>
+      <a class="contact-item" href="mailto:vitel1@gmail.com">
+        <div class="ci-icon ci-purple">✉️</div>
+        <div>
+          <div class="ci-title">Email Support</div>
+          <div class="ci-sub">vitel1@gmail.com</div>
+        </div>
+        <div class="ci-arrow">›</div>
+      </a>
+      <a class="contact-item" href="tel:+2347120000000">
+        <div class="ci-icon ci-blue">📞</div>
+        <div>
+          <div class="ci-title">Call Us</div>
+          <div class="ci-sub">+2347120000000</div>
+        </div>
+        <div class="ci-arrow">›</div>
+      </a>
+      <a class="contact-item" href="https://t.me/vitelwireless" target="_blank">
+        <div class="ci-icon ci-blue">✈️</div>
+        <div>
+          <div class="ci-title">Telegram</div>
+          <div class="ci-sub">@vitelwireless</div>
+        </div>
+        <div class="ci-arrow">›</div>
+      </a>
+    </div>
+
+    <!-- Support hours -->
+    <div class="hours-card">
+      <div class="hours-title">⏰ Support Hours</div>
+      <div class="hours-row"><span class="hours-day">Monday – Friday</span><span class="hours-time">8:00 AM – 8:00 PM</span></div>
+      <div class="hours-row"><span class="hours-day">Saturday</span><span class="hours-time">9:00 AM – 5:00 PM</span></div>
+      <div class="hours-row"><span class="hours-day">Sunday</span><span class="hours-time">12:00 PM - 5:00 PM</span></div>
+    </div>
+
+    <!-- Contact form -->
+    <div class="form-card">
+      <div class="form-title">Send us a message</div>
+      <div id="formAlert" style="display:none"></div>
+      <div class="field">
+        <label>Subject</label>
+        <select id="subject">
+          <option value="">Select a topic…</option>
+          <option>Deposit not credited</option>
+          <option>Withdrawal issue</option>
+          <option>Account access problem</option>
+          <option>Product / investment query</option>
+          <option>Referral reward issue</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Your Message</label>
+        <textarea id="message" placeholder="Describe your issue in detail…"></textarea>
+      </div>
+      <div id="formAlert2" style="display:none"></div>
+      <button class="send-btn" id="sendBtn" onclick="sendMsg()">Send Message</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase.js"></script>
+<script src="assets/js/auth.js"></script>
+<script>
+(function(){
+  var uid="", userEmail="", userName="";
+  function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
+  waitSb(async function(){
+    var s=await window.VitelAuth.requireAuth(); if(!s)return;
+    uid=s.user.id; userEmail=s.user.email;
+    var {data:p}=await window.sb.from("profiles").select("full_name").eq("id",uid).single();
+    userName=p?.full_name||"";
+  });
+
+  window.sendMsg=async function(){
+    var subject=document.getElementById("subject").value;
+    var message=document.getElementById("message").value.trim();
+    var al=document.getElementById("formAlert2");
+    al.style.display="none";
+
+    if(!subject){ al.textContent="Please select a subject."; al.className="alert-box a-error"; al.style.display="block"; return; }
+    if(!message||message.length<10){ al.textContent="Please write a message (min 10 characters)."; al.className="alert-box a-error"; al.style.display="block"; return; }
+
+    var btn=document.getElementById("sendBtn");
+    btn.disabled=true; btn.textContent="Sending…";
+
+    // Save as a message to admin (user_id = null means it goes to admin view; we tag it by sender)
+    var fullMsg = "[FROM: "+(userName||userEmail)+"] "+subject+"\n\n"+message;
+    await window.sb.from("messages").insert({
+      user_id: null,
+      sender_id: uid,
+      title: subject,
+      content: fullMsg,
+      is_read: false,
+    });
+
+    al.textContent="✅ Message sent! Our team will respond within 24 hours.";
+    al.className="alert-box a-success"; al.style.display="block";
+    document.getElementById("subject").value="";
+    document.getElementById("message").value="";
+    btn.disabled=false; btn.textContent="Send Message";
+  };
+})();
+</script>
+</body>
+      </html>
+  
