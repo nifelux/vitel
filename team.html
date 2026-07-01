@@ -169,6 +169,7 @@
     var s=await window.VitelAuth.requireAuth(); if(!s)return;
     userId=s.user.id;
 
+    // Own profile (RLS allows this — user reading their own row)
     var {data:p}=await window.sb.from("profiles").select("referral_code,vip_level").eq("id",userId).single();
     refCode=p?.referral_code||"";
     document.getElementById("refCode").textContent=refCode;
@@ -181,42 +182,28 @@
       if(n<=vip) document.getElementById("vt"+n).classList.add("unlocked");
     });
 
-    // Load L1 members
-    var {data:l1}=await window.sb.from("profiles").select("id,full_name,email,created_at")
-      .eq("referred_by",userId).order("created_at",{ascending:false});
-    l1Members=l1||[];
+    // ── Team data from server-side API (bypasses RLS) ──────────────────
+    // Direct Supabase queries here always returned 0 because the
+    // "users_own_profile" RLS policy blocks users from reading
+    // other people's profile rows — even when referred_by = their own id.
+    try {
+      var r=await fetch("/api/team?user_id="+userId);
+      var d=await r.json();
+      if(!d.ok) throw new Error(d.error||"Failed to load team");
 
-    // Count active (has deposit)
-    var l1Ids=l1Members.map(function(x){return x.id;});
-    var activeIds=new Set();
-    if(l1Ids.length){
-      var {data:deps}=await window.sb.from("deposits").select("user_id").eq("status","completed").in("user_id",l1Ids);
-      (deps||[]).forEach(function(d){activeIds.add(d.user_id);});
+      l1Members=d.l1||[];
+      l2Members=d.l2||[];
+      l3Members=d.l3||[];
+
+      document.getElementById("totalTeam").textContent=d.total_team||0;
+      document.getElementById("activeTeam").textContent=d.active_count||0;
+      document.getElementById("activeRefs").textContent="("+d.active_count+" active)";
+      document.getElementById("refEarnings").textContent="₦"+(d.earned||0).toLocaleString();
+    } catch(e) {
+      console.error("Team load error:", e);
+      document.getElementById("totalTeam").textContent="—";
+      document.getElementById("activeTeam").textContent="—";
     }
-    l1Members=l1Members.map(function(m){return Object.assign({},m,{isActive:activeIds.has(m.id)});});
-
-    var activeCount=Array.from(activeIds).length;
-    document.getElementById("totalTeam").textContent=l1Members.length;
-    document.getElementById("activeTeam").textContent=activeCount;
-    document.getElementById("activeRefs").textContent="("+activeCount+" active)";
-
-    // L2
-    if(l1Ids.length){
-      var {data:l2}=await window.sb.from("profiles").select("id,full_name,email,created_at,referred_by").in("referred_by",l1Ids);
-      l2Members=l2||[];
-    }
-
-    // L3
-    var l2Ids=l2Members.map(function(x){return x.id;});
-    if(l2Ids.length){
-      var {data:l3}=await window.sb.from("profiles").select("id,full_name,email,created_at").in("referred_by",l2Ids);
-      l3Members=l3||[];
-    }
-
-    // Referral earnings
-    var {data:rw}=await window.sb.from("referral_rewards").select("amount").eq("referrer_id",userId);
-    var total=(rw||[]).reduce(function(s,r){return s+Number(r.amount||0);},0);
-    document.getElementById("refEarnings").textContent="₦"+total.toLocaleString();
 
     renderLevel(1);
   });
@@ -264,5 +251,5 @@
 })();
 </script>
 </body>
-</html>
+          </html>
   
