@@ -30,16 +30,17 @@ module.exports = async function handler(req, res) {
       .order("created_at",{ascending:false});
     const l1List = l1||[];
 
-    // Which L1 members have made a deposit (= "active")
+    // Which L1 members have bought a product (= truly "active investor")
+    // Previously checked deposits table — but members can fund via gift codes
+    // and never appear there. Bought a product = genuinely active.
     const l1Ids = l1List.map(m=>m.id);
     let activeSet = new Set();
     if(l1Ids.length){
-      const { data:deps } = await supabase
-        .from("deposits")
+      const { data:invested } = await supabase
+        .from("user_products")
         .select("user_id")
-        .eq("status","completed")
         .in("user_id", l1Ids);
-      (deps||[]).forEach(d=>activeSet.add(d.user_id));
+      (invested||[]).forEach(r=>activeSet.add(r.user_id));
     }
     const l1WithStatus = l1List.map(m=>({...m, isActive:activeSet.has(m.id)}));
 
@@ -88,4 +89,4 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
-  
+      
