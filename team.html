@@ -176,11 +176,7 @@
     var link=location.origin+"/register.html?ref="+refCode;
     document.getElementById("refLink").textContent=link;
 
-    // VIP tiers
-    var vip=p?.vip_level||0;
-    [1,2,3,4].forEach(function(n){
-      if(n<=vip) document.getElementById("vt"+n).classList.add("unlocked");
-    });
+    // VIP tiers will be highlighted after API call below
 
     // ── Team data from server-side API (bypasses RLS) ──────────────────
     // Direct Supabase queries here always returned 0 because the
@@ -195,10 +191,26 @@
       l2Members=d.l2||[];
       l3Members=d.l3||[];
 
-      document.getElementById("totalTeam").textContent=d.total_team||0;
-      document.getElementById("activeTeam").textContent=d.active_count||0;
-      document.getElementById("activeRefs").textContent="("+d.active_count+" active)";
-      document.getElementById("refEarnings").textContent="₦"+(d.earned||0).toLocaleString();
+      var activeCount = d.active_count||0;
+      var totalTeam   = d.total_team||0;
+
+      document.getElementById("totalTeam").textContent   = totalTeam;
+      document.getElementById("activeTeam").textContent  = activeCount;
+      document.getElementById("activeRefs").textContent  = "("+activeCount+" active investors)";
+      document.getElementById("refEarnings").textContent = "₦"+(d.earned||0).toLocaleString();
+
+      // VIP tier highlights — show how close user is
+      var thresholds = {1:3, 2:5, 3:10, 4:25};
+      [1,2,3,4].forEach(function(n){
+        var el = document.getElementById("vt"+n);
+        el.classList.remove("unlocked");
+        if(activeCount >= thresholds[n]){
+          el.classList.add("unlocked");
+          el.querySelector(".vt-req").textContent = "✅ Unlocked";
+        } else {
+          el.querySelector(".vt-req").textContent = activeCount+"/"+thresholds[n]+" refs";
+        }
+      });
     } catch(e) {
       console.error("Team load error:", e);
       document.getElementById("totalTeam").textContent="—";
@@ -251,5 +263,5 @@
 })();
 </script>
 </body>
-          </html>
+  </html>
   
