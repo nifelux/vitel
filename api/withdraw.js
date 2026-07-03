@@ -32,11 +32,29 @@ module.exports = async function(req, res) {
   const { data:w } = await supabase.from("wallets").select("balance").eq("user_id",user_id).single();
   if(!w || w.balance < num) return res.json({ ok:false, error:"Insufficient balance" });
 
+  // Get profile for Telegram notification
+  const { data:profile } = await supabase
+    .from("profiles").select("full_name,email").eq("id",user_id).single();
+
   // Deduct balance
   await supabase.from("wallets").update({ balance:w.balance-num, total_withdrawn:(w.total_withdrawn||0)+num, updated_at:new Date().toISOString() }).eq("user_id",user_id);
   await supabase.from("wallet_transactions").insert({ user_id, type:"withdrawal", amount:-num, description:"Withdrawal request" });
-  const { error } = await supabase.from("withdrawals").insert({ user_id, amount:num, bank_name, account_number, account_name, status:"pending" });
+
+  const { data:wit, error } = await supabase.from("withdrawals")
+    .insert({ user_id, amount:num, bank_name, account_number, account_name, status:"pending" })
+    .select().single();
   if(error) return res.status(500).json({ error:error.message });
+
+  // Ping Telegram bot — non-blocking
+  try {
+    const { notifyWithdrawal } = require("./telegram");
+    await notifyWithdrawal({
+      id: wit.id, amount: num,
+      bank_name, account_number, account_name,
+      user_name:  profile?.full_name || "Unknown",
+      user_email: profile?.email || "",
+    });
+  } catch(e) { console.warn("[withdraw] Telegram notify failed:", e.message); }
+
   return res.json({ ok:true });
 };
-  
