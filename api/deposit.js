@@ -50,12 +50,28 @@ module.exports = async function(req, res) {
   if(action==="initiate-manual") {
     const reference = genRef("MAN", user_id);
     const narration = genNarration(user_id);
-    const { error } = await supabase.from("deposits").insert({
+
+    const { data:profile } = await supabase
+      .from("profiles").select("full_name,email").eq("id",user_id).single();
+
+    const { data:dep, error } = await supabase.from("deposits").insert({
       user_id, amount:num, reference, narration,
       status:"pending", method:"manual", provider:"manual",
       created_at: new Date().toISOString(),
-    });
+    }).select().single();
+
     if(error) return res.status(500).json({ error:error.message });
+
+    // Ping Telegram bot — non-blocking
+    try {
+      const { notifyDeposit } = require("./telegram");
+      await notifyDeposit({
+        id: dep.id, amount: num, narration,
+        user_name:  profile?.full_name || "Unknown",
+        user_email: profile?.email || "",
+      });
+    } catch(e) { console.warn("[deposit] Telegram notify failed:", e.message); }
+
     return res.json({ ok:true, reference, narration, amount:num,
       bank_name:"OPay", account_number:"6556493720", account_name:"OLUWANIFEMI ABDULLAHI OLUDE" });
   }
@@ -74,4 +90,3 @@ module.exports = async function(req, res) {
 
   return res.status(400).json({ error:"Unknown action: " + action });
 };
-    
