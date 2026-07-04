@@ -152,6 +152,15 @@
       </div>
       <div id="depList"><div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div></div>
     </div>
+
+    <div class="a-card" style="margin-top:14px">
+      <div class="a-card-title">
+        Unmatched Bank Alerts
+        <button class="refresh-btn" onclick="loadUnmatchedAlerts()">↻ Refresh</button>
+      </div>
+      <div style="padding:10px 14px 0;font-size:11px;color:#64748B">Money came in but no narration could be matched. Paste the correct deposit reference to credit it manually.</div>
+      <div id="unmatchedAlertsList"><div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div></div>
+    </div>
   </div>
 
   <!-- ═══ WITHDRAWALS ═══ -->
@@ -348,6 +357,7 @@
     adminId=s.user.id;
     await loadStats();
     await loadDeposits();
+    await loadUnmatchedAlerts();
     await loadMethod();
   });
 
@@ -357,7 +367,7 @@
     document.querySelectorAll(".anav").forEach(function(b){b.classList.remove("on");});
     document.getElementById("page-"+id).classList.add("on");
     if(btn) btn.classList.add("on");
-    if(id==="deposits") loadDeposits();
+    if(id==="deposits"){ loadDeposits(); loadUnmatchedAlerts(); }
     if(id==="withdrawals") loadWithdrawals();
     if(id==="products") loadProducts();
     if(id==="users") loadUsers();
@@ -418,6 +428,50 @@
     window.VitelAuth.toast(d.ok?(act==="approve"?"✅ Approved!":"🚫 Rejected"):("❌ "+d.error));
     setTimeout(loadDeposits,600);
     loadStats();
+  };
+
+  /* ── Unmatched bank alerts (Gmail parsing misses) ── */
+  window.loadUnmatchedAlerts=async function(){
+    var el=document.getElementById("unmatchedAlertsList");
+    if(!el) return;
+    el.innerHTML='<div class="loader-wrap"><div class="loader" style="border-color:#334155;border-top-color:var(--sky)"></div></div>';
+    var r=await fetch("/api/admin?action=unmatched-alerts&admin_id="+adminId);
+    var d=await r.json();
+    if(!d.ok){
+      el.innerHTML='<div style="text-align:center;color:#f87171;padding:16px;font-size:13px">⚠️ '+(d.error||"Failed to load")+'</div>';
+      return;
+    }
+    var alerts=d.alerts||[];
+    if(!alerts.length){
+      el.innerHTML='<div style="text-align:center;color:#64748B;padding:20px;font-size:13px">No unmatched alerts. 🎉</div>';
+      return;
+    }
+    el.innerHTML=alerts.map(function(a){
+      return '<div class="dep-row">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+          '<div style="flex:1">'+
+            '<div class="dep-meta">'+new Date(a.received_at).toLocaleString()+' · '+(a.sender_email||"unknown sender")+'</div>'+
+            '<div class="dep-meta" style="margin-top:4px;color:#94A3B8;font-family:monospace;font-size:11px;line-height:1.5">'+((a.raw_snippet||"").slice(0,140))+'…</div>'+
+          '</div>'+
+          '<div class="dep-amt">₦'+Number(a.amount).toLocaleString()+'</div>'+
+        '</div>'+
+        '<div style="display:flex;gap:8px;margin-top:10px">'+
+          '<input id="ref-'+a.id+'" placeholder="Paste deposit reference…" style="flex:1;padding:8px 10px;border-radius:8px;border:1.5px solid #334155;background:#0F172A;color:#fff;font-size:12px"/>'+
+          '<button class="btn-approve" onclick="matchAlert(\''+a.id+'\')">Match & Credit</button>'+
+        '</div>'+
+      '</div>';
+    }).join("");
+  };
+
+  window.matchAlert=async function(alertId){
+    var input=document.getElementById("ref-"+alertId);
+    var ref=input.value.trim();
+    if(!ref){ window.VitelAuth.toast("Enter the deposit reference first"); return; }
+    var r=await fetch("/api/admin?action=manual-match-alert",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({alert_id:alertId,deposit_reference:ref,admin_id:adminId})});
+    var d=await r.json();
+    window.VitelAuth.toast(d.ok?"✅ Matched and credited!":"❌ "+d.error);
+    loadUnmatchedAlerts();
+    loadDeposits();
   };
 
   /* ── Withdrawals ── */
