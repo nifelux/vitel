@@ -102,6 +102,17 @@ module.exports = async function(req, res) {
       return res.json({ ok:true, codes:data||[] });
     }
 
+    if(action==="unmatched-alerts") {
+      const { data,error } = await supabase
+        .from("bank_credit_alerts")
+        .select("*")
+        .eq("status","unmatched")
+        .order("received_at",{ascending:false})
+        .limit(50);
+      if(error) return res.status(500).json({ error:error.message });
+      return res.json({ ok:true, alerts:data||[] });
+    }
+
     if(action==="stats") {
       const [d,w,u,p] = await Promise.all([
         supabase.from("deposits").select("id",{count:"exact",head:true}).eq("status","pending"),
@@ -251,6 +262,29 @@ module.exports = async function(req, res) {
     const { error } = await supabase.from("gift_codes").delete().eq("id",code_id);
     if(error) return res.status(500).json({ error:error.message });
     return res.json({ ok:true });
+  }
+
+  if(action==="manual-match-alert") {
+    const { alert_id, deposit_reference } = req.body;
+    if(!alert_id || !deposit_reference) return res.status(400).json({ error:"alert_id and deposit_reference required" });
+
+    const { data:alert } = await supabase.from("bank_credit_alerts").select("*").eq("id",alert_id).single();
+    if(!alert) return res.status(404).json({ error:"Alert not found" });
+
+    const { data:dep } = await supabase.from("deposits").select("*").eq("reference",deposit_reference.trim()).single();
+    if(!dep) return res.status(404).json({ error:"Deposit not found — check the reference" });
+    if(dep.status==="completed") return res.json({ ok:true, note:"already_completed" });
+
+    await supabase.from("bank_credit_alerts").update({ status:"matched", matched_deposit_id:dep.id }).eq("id",alert_id);
+
+    const { data,error } = await supabase.rpc("process_deposit", {
+      p_reference: dep.reference,
+      p_amount:    alert.amount,
+      p_payload:   { source:"admin_manual_alert_match", alert_id },
+    });
+    if(error) return res.status(500).json({ error:error.message });
+    if(!data?.ok) return res.json({ ok:true, note:data?.error });
+    return res.json({ ok:true, data });
   }
 
   return res.status(400).json({ error:"Unknown action: "+action });
