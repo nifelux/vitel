@@ -12,6 +12,13 @@ module.exports = async function(req, res) {
   res.setHeader("Access-Control-Allow-Headers","Content-Type");
   if(req.method==="OPTIONS") return res.status(200).end();
 
+  // Public status check — no admin_id needed, just tells the withdraw
+  // page whether the button should be disabled.
+  if(req.method==="GET" && req.query.action==="lock-status") {
+    const { data } = await supabase.from("site_settings").select("value").eq("key","withdrawals_locked").single();
+    return res.json({ ok:true, locked: data?.value === "true" });
+  }
+
   const user_id = req.method==="GET" ? req.query.user_id : req.body?.user_id;
   if(!user_id) return res.status(400).json({ error:"user_id required" });
 
@@ -22,6 +29,13 @@ module.exports = async function(req, res) {
   }
 
   if(req.method!=="POST") return res.status(405).json({ error:"Method not allowed" });
+
+  // Enforce the admin's global lock — checked here too (not just on the
+  // frontend) so the lock can't be bypassed by calling the API directly.
+  const { data:lockSetting } = await supabase.from("site_settings").select("value").eq("key","withdrawals_locked").single();
+  if(lockSetting?.value === "true") {
+    return res.json({ ok:false, error:"Withdrawals are temporarily paused. Please check back later." });
+  }
 
   const { amount, bank_name, account_number, account_name } = req.body;
   if(!amount||!bank_name||!account_number||!account_name) return res.status(400).json({ error:"All fields required" });
