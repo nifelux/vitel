@@ -123,6 +123,11 @@ module.exports = async function(req, res) {
       return res.json({ ok:true, pending_deposits:d.count||0, pending_withdrawals:w.count||0, total_users:u.count||0, active_products:p.count||0 });
     }
 
+    if(action==="withdrawal-lock-status") {
+      const { data } = await supabase.from("site_settings").select("value").eq("key","withdrawals_locked").single();
+      return res.json({ ok:true, locked: data?.value === "true" });
+    }
+
     return res.status(400).json({ error:"Unknown action" });
   }
 
@@ -135,6 +140,14 @@ module.exports = async function(req, res) {
     const { error } = await supabase.from("site_settings").upsert({ key:"deposit_method", value:method, updated_at:new Date().toISOString() });
     if(error) return res.status(500).json({ error:error.message });
     return res.json({ ok:true, method });
+  }
+
+  if(action==="set-withdrawal-lock") {
+    const { locked } = req.body;
+    const { error } = await supabase.from("site_settings")
+      .upsert({ key:"withdrawals_locked", value: locked ? "true" : "false", updated_at:new Date().toISOString() });
+    if(error) return res.status(500).json({ error:error.message });
+    return res.json({ ok:true, locked: !!locked });
   }
 
   if(action==="process-deposit") {
