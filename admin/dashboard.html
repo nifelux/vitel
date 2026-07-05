@@ -316,6 +316,25 @@
       </div>
       <div class="m-status" id="mStatus">Loading…</div>
     </div>
+
+    <div class="a-card" style="margin-bottom:14px">
+      <div class="a-card-title">Withdrawals</div>
+      <div style="padding:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#fff">Accept new withdrawal requests</div>
+            <div style="font-size:12px;color:#64748B;margin-top:2px" id="wLockDesc">Loading…</div>
+          </div>
+          <button id="wLockToggle" onclick="toggleWithdrawalLock()" style="flex-shrink:0;width:52px;height:30px;border-radius:20px;border:none;cursor:pointer;position:relative;background:#334155;transition:background .2s">
+            <span id="wLockKnob" style="position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></span>
+          </button>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:#64748B;line-height:1.5">
+          When locked, users can't submit new withdrawal requests (they'll see a paused message). Pending requests already submitted are unaffected — you can still approve or reject them as normal.
+        </div>
+      </div>
+    </div>
+
     <div class="a-card">
       <div class="a-card-title">Manual Account Details</div>
       <div style="padding:14px;font-size:14px;line-height:2;color:#94A3B8">
@@ -359,6 +378,7 @@
     await loadDeposits();
     await loadUnmatchedAlerts();
     await loadMethod();
+    await loadWithdrawalLock();
   });
 
   /* ── Page nav ── */
@@ -882,6 +902,48 @@
     var d=await r.json();
     if(d.ok){ applyMethod(m); window.VitelAuth.toast("✅ Switched to "+m); }
     else { window.VitelAuth.toast("❌ "+d.error); }
+  };
+
+  /* ── Withdrawal lock ── */
+  var withdrawalsLocked = false;
+
+  async function loadWithdrawalLock(){
+    var r=await fetch("/api/admin?action=withdrawal-lock-status&admin_id="+adminId);
+    var d=await r.json();
+    withdrawalsLocked = !!d.locked;
+    applyWithdrawalLockUI();
+  }
+
+  function applyWithdrawalLockUI(){
+    var toggle = document.getElementById("wLockToggle");
+    var knob   = document.getElementById("wLockKnob");
+    var desc   = document.getElementById("wLockDesc");
+    if(withdrawalsLocked){
+      toggle.style.background = "#334155";
+      knob.style.transform = "translateX(0)";
+      desc.textContent = "🔒 Locked — users cannot submit new withdrawals";
+      desc.style.color = "#f87171";
+    } else {
+      toggle.style.background = "#00c853";
+      knob.style.transform = "translateX(22px)";
+      desc.textContent = "✅ Open — users can submit withdrawals normally";
+      desc.style.color = "#34D399";
+    }
+  }
+
+  window.toggleWithdrawalLock=async function(){
+    var newState = !withdrawalsLocked;
+    document.getElementById("wLockDesc").textContent = "Updating…";
+    var r=await fetch("/api/admin?action=set-withdrawal-lock",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({locked:newState,admin_id:adminId})});
+    var d=await r.json();
+    if(d.ok){
+      withdrawalsLocked = d.locked;
+      applyWithdrawalLockUI();
+      window.VitelAuth.toast(withdrawalsLocked ? "🔒 Withdrawals locked" : "✅ Withdrawals unlocked");
+    } else {
+      window.VitelAuth.toast("❌ "+d.error);
+      applyWithdrawalLockUI();
+    }
   };
 
   window.grantAdmin=async function(){
