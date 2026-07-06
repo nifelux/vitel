@@ -67,6 +67,31 @@ module.exports = async function handler(req, res) {
       l3List = l3||[];
     }
 
+    // ── Total team deposits — sum of completed deposits across L1+L2+L3 ────
+    // Same pool of deposits the monthly salary (5%) is calculated from, so
+    // users can see their own progress toward that number.
+    const l3Ids = l3List.map(m=>m.id);
+    const allTeamIds = [...l1Ids, ...l2Ids, ...l3Ids];
+
+    let l1Deposits = 0, l2Deposits = 0, l3Deposits = 0;
+    if(allTeamIds.length){
+      const { data:deps } = await supabase
+        .from("deposits")
+        .select("user_id,amount")
+        .eq("status","completed")
+        .in("user_id", allTeamIds);
+
+      const l1Set = new Set(l1Ids);
+      const l2Set = new Set(l2Ids);
+      (deps||[]).forEach(d=>{
+        const amt = Number(d.amount||0);
+        if(l1Set.has(d.user_id)) l1Deposits += amt;
+        else if(l2Set.has(d.user_id)) l2Deposits += amt;
+        else l3Deposits += amt;
+      });
+    }
+    const totalTeamDeposits = l1Deposits + l2Deposits + l3Deposits;
+
     // Referral earnings
     const { data:rewards } = await supabase
       .from("referral_rewards")
@@ -82,6 +107,10 @@ module.exports = async function handler(req, res) {
       active_count: activeSet.size,
       total_team: l1List.length + l2List.length + l3List.length,
       earned: totalEarned,
+      total_team_deposits: totalTeamDeposits,
+      l1_deposits: l1Deposits,
+      l2_deposits: l2Deposits,
+      l3_deposits: l3Deposits,
     });
 
   } catch(e) {
@@ -89,4 +118,3 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 };
-      
