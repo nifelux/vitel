@@ -13,7 +13,10 @@ function genRef(prefix, uid) {
   return `${prefix}-${uid.replace(/-/g,"").slice(0,6).toUpperCase()}-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
 }
 function genNarration(uid) {
-  return `VTL-${uid.replace(/-/g,"").slice(0,5).toUpperCase()}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+  // No dashes — bank/PSP transfer description fields often strip or mangle
+  // special characters, which broke matching against Gmail credit alerts.
+  // Plain uppercase alphanumeric survives every bank's narration field intact.
+  return `VTL${uid.replace(/-/g,"").slice(0,5).toUpperCase()}${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
 }
 
 module.exports = async function(req, res) {
