@@ -1,26 +1,45 @@
 /**
  * /api/deposit-bot.js
  *
- * Handles THREE roles in one file (keeps serverless function count down —
- * you're already at 9 functions, this adds only 1 instead of 2):
+ * Handles TWO roles in one file:
  *
  * 1. POST ?action=ingest
  *    Google Apps Script posts parsed Gmail credit alerts here.
  *    Auth: header "x-vitel-secret" must match BANK_ALERT_INGEST_SECRET.
  *
- * 2. GET ?action=lookup&narration=XXX
- *    Checks a narration against pending deposits + bank alerts, and
- *    auto-approves if a match is found. Callable directly for debugging.
+ * 2. POST (no ?action) — Telegram webhook for the PUBLIC deposit bot.
+ *    Flow:
+ *      User sends narration → bot checks if a bank alert exists for it
+ *        → if yes: bot asks "how much did you send?" (doesn't reveal the
+ *          amount — this is a verification step)
+ *        → user replies with the amount → if it matches the received
+ *          alert, the deposit is approved immediately
+ *        → if not found at all: bot tells them to contact support
  *
- * 3. POST (no ?action) — Telegram webhook for the PUBLIC deposit bot.
- *    Anyone can message this bot their narration code and get an
- *    instant status check / auto-approval.
+ * ── Why "normalize and search" instead of a fixed narration regex ──────────
+ * Banks strip or reformat special characters in transfer descriptions
+ * unpredictably (that's what broke the original dash-based format). Rather
+ * than guessing an exact pattern, both the ingest step and the bot now:
+ *   1. Strip everything except letters/numbers and uppercase both sides
+ *   2. Check if the deposit's narration appears anywhere inside the email
+ * This works regardless of dashes, spaces, or minor reformatting — it also
+ * means old dash-format narrations already in your database still match
+ * fine, no migration needed.
+ *
+ * ── Admin visibility ─────────────────────────────────────────────────────
+ * Every auto-approval (whether triggered instantly on Gmail ingest, or via
+ * a user confirming their amount in this bot) sends a message to your
+ * EXISTING admin Telegram bot — same TELEGRAM_BOT_TOKEN and
+ * TELEGRAM_ADMIN_CHAT_ID you already set up for api/telegram.js. No new
+ * setup needed for that part.
  *
  * Env vars needed:
- *   TELEGRAM_DEPOSIT_BOT_TOKEN   — new bot token from @BotFather
- *                                  (a SEPARATE bot from your admin bot)
- *   BANK_ALERT_INGEST_SECRET     — any random string you choose, shared
- *                                  with the Google Apps Script
+ *   TELEGRAM_DEPOSIT_BOT_TOKEN  — new bot token from @BotFather
+ *                                 (a SEPARATE bot from your admin bot)
+ *   BANK_ALERT_INGEST_SECRET    — any random string, shared with the
+ *                                 Google Apps Script
+ *   TELEGRAM_BOT_TOKEN          — already set (your admin bot)
+ *   TELEGRAM_ADMIN_CHAT_ID      — already set (your admin chat)
  *   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY — already set
  */
 
@@ -30,18 +49,25 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 const BOT_TOKEN = process.env.TELEGRAM_DEPOSIT_BOT_TOKEN;
 const TG_API    = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-// ── Tolerant narration extractor ──────────────────────────────────────────────
-// Reconstructs the canonical VTL-XXXXX-XXXXXX form even if the source text
-// has slightly different spacing/casing/dashes (common in copy-pasted text
-// or emails that reformat things).
-function extractNarration(text) {
-  const m = (text || "").match(/VTL[\s\-]{0,3}([A-F0-9]{5})[\s\-]{0,3}([A-F0-9]{6})/i);
-  if (!m) return null;
-  return `VTL-${m[1]}-${m[2]}`.toUpperCase();
+// Reuses your EXISTING admin bot to notify you of auto-approvals.
+const ADMIN_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const ADMIN_CHAT       = process.env.TELEGRAM_ADMIN_CHAT_ID;
+const ADMIN_API        = `https://api.telegram.org/bot${ADMIN_BOT_TOKEN}`;
+
+const AMOUNT_TOLERANCE  = 1;               // naira — allows for rounding
+const SESSION_EXPIRY_MS = 15 * 60 * 1000;  // stale "awaiting amount" sessions expire after 15 min
+const MAX_ATTEMPTS      = 5;               // wrong-amount attempts before session resets
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function normalize(s) {
+  return (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
-function normalizeNarration(s) {
-  return (s || "").trim().toUpperCase();
+function parseAmount(text) {
+  const m = (text || "").match(/[\d,]+(?:\.\d{1,2})?/);
+  if (!m) return null;
+  const n = parseFloat(m[0].replace(/,/g, ""));
+  return isNaN(n) ? null : n;
 }
 
 async function sendMessage(chat_id, text) {
@@ -52,89 +78,110 @@ async function sendMessage(chat_id, text) {
   });
 }
 
-// ── Core matching logic — shared by ingest, lookup, and the bot ──────────────
-async function tryMatchAndApprove(narration, amount, alertId) {
-  const { data: deps } = await supabase
-    .from("deposits")
-    .select("*")
-    .eq("narration", narration)
-    .eq("status", "pending")
-    .limit(1);
+async function notifyAdmin(text) {
+  if (!ADMIN_BOT_TOKEN || !ADMIN_CHAT) return;
+  try {
+    await fetch(`${ADMIN_API}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: ADMIN_CHAT, text, parse_mode: "HTML" }),
+    });
+  } catch (e) { console.warn("[deposit-bot] admin notify failed:", e.message); }
+}
 
-  const deposit = deps && deps[0];
-  if (!deposit) return { matched: false };
-
-  if (alertId) {
-    await supabase
-      .from("bank_credit_alerts")
-      .update({ status: "matched", matched_deposit_id: deposit.id })
-      .eq("id", alertId);
-  }
-
-  // Credit whatever the bank alert actually says was received — this is
-  // the ground truth of what came into the account, more reliable than
-  // trusting the originally-requested amount.
+async function approveDeposit(deposit, amount, source) {
   const { data, error } = await supabase.rpc("process_deposit", {
     p_reference: deposit.reference,
     p_amount:    amount,
-    p_payload:   { source: "gmail_auto_match", narration },
+    p_payload:   { source },
   });
+  if (error || !data?.ok) return { approved: false, error: error?.message || data?.error };
 
-  if (error || !data?.ok) {
-    return { matched: true, approved: false, error: error?.message || data?.error, deposit };
-  }
-  return { matched: true, approved: true, deposit, amount };
+  const { data: profile } = await supabase
+    .from("profiles").select("full_name,email").eq("id", deposit.user_id).single();
+
+  await notifyAdmin(
+    `✅ <b>Auto-approved via ${source === "gmail_ingest_match" ? "Gmail match" : "Deposit Bot"}</b>\n\n` +
+    `👤 ${profile?.full_name || "Unknown"} (${profile?.email || ""})\n` +
+    `💰 ₦${Number(amount).toLocaleString()}\n` +
+    `🏷 Narration: <code>${deposit.narration}</code>\n` +
+    `🆔 Ref: <code>${deposit.reference}</code>`
+  );
+
+  return { approved: true, data };
 }
 
-async function lookupNarration(narrationRaw) {
-  const narration = normalizeNarration(narrationRaw);
-  if (!narration) return { ok: false, error: "narration required" };
+async function findDepositByNarrationInText(text) {
+  const normText = normalize(text);
+  if (!normText) return null;
 
-  const { data: deps } = await supabase.from("deposits").select("*").eq("narration", narration).limit(1);
-  const dep = deps && deps[0];
-  if (!dep) return { ok: true, found: false };
+  const { data: pending } = await supabase.from("deposits").select("*").eq("status", "pending");
+  if (!pending || !pending.length) return null;
 
-  if (dep.status === "completed") return { ok: true, found: true, status: "completed", amount: dep.amount };
-  if (dep.status === "rejected")  return { ok: true, found: true, status: "rejected" };
+  for (const dep of pending) {
+    const normNarr = normalize(dep.narration);
+    if (normNarr && normText.includes(normNarr)) return dep;
+  }
+  return null;
+}
 
-  const { data: alerts } = await supabase
+async function findAlertForNarration(narration) {
+  const { data: exact } = await supabase
     .from("bank_credit_alerts")
     .select("*")
     .eq("narration", narration)
-    .order("created_at", { ascending: false })
+    .eq("status", "unmatched")
+    .order("received_at", { ascending: false })
     .limit(1);
+  if (exact && exact[0]) return exact[0];
 
-  const alert = alerts && alerts[0];
-  if (!alert) return { ok: true, found: true, status: "pending", alert_found: false, created_at: dep.created_at };
-
-  const result = await tryMatchAndApprove(narration, alert.amount, alert.id);
-  return { ok: true, found: true, status: result.approved ? "completed" : "pending", alert_found: true, ...result };
+  const normNarr = normalize(narration);
+  const { data: alerts } = await supabase
+    .from("bank_credit_alerts")
+    .select("*")
+    .eq("status", "unmatched")
+    .order("received_at", { ascending: false })
+    .limit(50);
+  if (!alerts) return null;
+  return alerts.find(a => normalize(a.raw_snippet || "").includes(normNarr)) || null;
 }
 
-// ── Main handler ───────────────────────────────────────────────────────────────
+async function getSession(chatId) {
+  const { data } = await supabase.from("bot_sessions").select("*").eq("chat_id", chatId).single();
+  if (!data) return null;
+  if (Date.now() - new Date(data.updated_at).getTime() > SESSION_EXPIRY_MS) return null;
+  return data;
+}
+async function setSession(chatId, fields) {
+  await supabase.from("bot_sessions").upsert({ chat_id: chatId, updated_at: new Date().toISOString(), ...fields });
+}
+async function clearSession(chatId) {
+  await supabase.from("bot_sessions").delete().eq("chat_id", chatId);
+}
+
 module.exports = async function handler(req, res) {
   const action = req.query.action;
 
-  // ══ 1. INGEST — new bank credit alert from Google Apps Script ══════════════
+  // ══ INGEST — new bank credit alert from Google Apps Script ═══════════════════
   if (req.method === "POST" && action === "ingest") {
     const secret = req.headers["x-vitel-secret"];
     if (!secret || secret !== process.env.BANK_ALERT_INGEST_SECRET) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { gmail_message_id, amount, narration, raw_snippet, sender_email } = req.body || {};
+    const { gmail_message_id, amount, raw_snippet, sender_email } = req.body || {};
     if (!gmail_message_id || !amount) {
       return res.status(400).json({ error: "gmail_message_id and amount required" });
     }
 
-    const cleanNarr = narration ? normalizeNarration(narration) : null;
+    const matchDep = await findDepositByNarrationInText(raw_snippet || "");
 
     const { data: alert, error } = await supabase
       .from("bank_credit_alerts")
       .insert({
         gmail_message_id,
         amount: Number(amount),
-        narration: cleanNarr,
+        narration: matchDep ? matchDep.narration : null,
         raw_snippet,
         sender_email,
         status: "unmatched",
@@ -143,24 +190,23 @@ module.exports = async function handler(req, res) {
       .single();
 
     if (error) {
-      // Same email already ingested — Apps Script re-scanned it, just skip.
       if (error.code === "23505") return res.json({ ok: true, note: "duplicate_email_skipped" });
       return res.status(500).json({ error: error.message });
     }
 
-    let matchResult = { matched: false };
-    if (cleanNarr) matchResult = await tryMatchAndApprove(cleanNarr, Number(amount), alert.id);
+    let approveResult = { approved: false };
+    if (matchDep && Math.abs(Number(amount) - Number(matchDep.amount)) <= AMOUNT_TOLERANCE) {
+      approveResult = await approveDeposit(matchDep, Number(amount), "gmail_ingest_match");
+      if (approveResult.approved) {
+        await supabase.from("bank_credit_alerts")
+          .update({ status: "matched", matched_deposit_id: matchDep.id }).eq("id", alert.id);
+      }
+    }
 
-    return res.json({ ok: true, alert_id: alert.id, ...matchResult });
+    return res.json({ ok: true, alert_id: alert.id, narration_found: !!matchDep, ...approveResult });
   }
 
-  // ══ 2. LOOKUP — check/approve by narration (used internally + debuggable) ══
-  if (req.method === "GET" && action === "lookup") {
-    const result = await lookupNarration(req.query.narration);
-    return res.json(result);
-  }
-
-  // ══ 3. TELEGRAM WEBHOOK — the public deposit bot ════════════════════════════
+  // ══ TELEGRAM WEBHOOK — the public deposit bot ═════════════════════════════════
   if (req.method === "POST" && !action) {
     const update = req.body;
     if (!update || !update.message) return res.status(200).json({ ok: true });
@@ -169,48 +215,29 @@ module.exports = async function handler(req, res) {
     const text = (update.message.text || "").trim();
 
     if (text === "/start") {
+      await clearSession(chatId);
       await sendMessage(chatId,
         "👋 <b>Welcome to Vitel Deposit Bot!</b>\n\n" +
         "After making your bank transfer, send me your <b>narration code</b> " +
-        "(e.g. <code>VTL-ABCDE-123456</code>) and I'll check it for you.\n\n" +
+        "(e.g. <code>VTLA1B2C3D4E5F</code>) and I'll check it for you.\n\n" +
         "⚠️ You must include the narration in your transfer description — otherwise we can't match your payment."
       );
       return res.status(200).json({ ok: true });
     }
 
-    const narration = extractNarration(text);
-    if (!narration) {
-      await sendMessage(chatId,
-        "🤔 I couldn't find a narration code in that message.\n\n" +
-        "Please send just your code, e.g. <code>VTL-ABCDE-123456</code> — you'll find it on the Recharge page after starting a manual deposit."
-      );
+    if (text === "/cancel") {
+      await clearSession(chatId);
+      await sendMessage(chatId, "Cancelled. Send me your narration code whenever you're ready.");
       return res.status(200).json({ ok: true });
     }
 
-    await sendMessage(chatId, "🔎 Checking <code>" + narration + "</code>…");
+    const matchDep = await findDepositByNarrationInText(text);
 
-    try {
-      const d = await lookupNarration(narration);
+    if (matchDep) {
+      const alert = await findAlertForNarration(matchDep.narration);
 
-      if (!d.found) {
-        await sendMessage(chatId,
-          "❌ No deposit found with narration <code>" + narration + "</code>.\n\n" +
-          "Double-check the code, or contact customer service if you believe this is a mistake."
-        );
-      } else if (d.status === "completed") {
-        await sendMessage(chatId, "✅ This deposit is already <b>confirmed and credited</b> to your wallet!");
-      } else if (d.status === "rejected") {
-        await sendMessage(chatId, "⚠️ This deposit was rejected. Please contact customer service.");
-      } else if (d.alert_found && d.approved) {
-        await sendMessage(chatId,
-          "🎉 <b>Deposit confirmed!</b> ₦" + Number(d.amount || 0).toLocaleString() + " has been credited to your wallet."
-        );
-      } else if (d.alert_found && !d.approved) {
-        await sendMessage(chatId,
-          "⚠️ We found a matching bank alert but couldn't complete the credit automatically.\n\n" +
-          "Please contact customer service and mention narration <code>" + narration + "</code>."
-        );
-      } else {
+      if (!alert) {
+        await clearSession(chatId);
         await sendMessage(chatId,
           "⏳ We haven't received a matching bank alert for this narration yet.\n\n" +
           "This usually means:\n" +
@@ -218,12 +245,71 @@ module.exports = async function handler(req, res) {
           "• The narration wasn't included in your transfer description\n\n" +
           "If it's been more than 20–30 minutes, please contact customer service and mention this code."
         );
+        return res.status(200).json({ ok: true });
       }
-    } catch (e) {
-      console.error("[deposit-bot]", e);
-      await sendMessage(chatId, "⚠️ Something went wrong. Please try again shortly or contact customer service.");
+
+      await setSession(chatId, {
+        state: "awaiting_amount",
+        narration: matchDep.narration,
+        alert_id: alert.id,
+        deposit_id: matchDep.id,
+        attempts: 0,
+      });
+      await sendMessage(chatId,
+        "✅ Found a matching transfer for narration <code>" + matchDep.narration + "</code>!\n\n" +
+        "To confirm it's really yours, please reply with the <b>exact amount</b> you sent (numbers only), e.g. <code>5000</code>"
+      );
+      return res.status(200).json({ ok: true });
     }
 
+    const session = await getSession(chatId);
+    if (session && session.state === "awaiting_amount") {
+      const entered = parseAmount(text);
+      if (entered === null) {
+        await sendMessage(chatId, "Please reply with just the amount as a number, e.g. <code>5000</code>");
+        return res.status(200).json({ ok: true });
+      }
+
+      const { data: alertRow } = await supabase.from("bank_credit_alerts").select("*").eq("id", session.alert_id).single();
+      const { data: depRow }   = await supabase.from("deposits").select("*").eq("id", session.deposit_id).single();
+
+      if (!alertRow || !depRow || depRow.status !== "pending") {
+        await clearSession(chatId);
+        await sendMessage(chatId, "This deposit is no longer pending — it may already have been approved. Check your wallet balance!");
+        return res.status(200).json({ ok: true });
+      }
+
+      if (Math.abs(entered - Number(alertRow.amount)) <= AMOUNT_TOLERANCE) {
+        const result = await approveDeposit(depRow, Number(alertRow.amount), "deposit_bot_confirmed");
+        await clearSession(chatId);
+        if (result.approved) {
+          await supabase.from("bank_credit_alerts")
+            .update({ status: "matched", matched_deposit_id: depRow.id }).eq("id", alertRow.id);
+          await sendMessage(chatId,
+            "🎉 <b>Confirmed!</b> ₦" + Number(alertRow.amount).toLocaleString() + " has been credited to your wallet."
+          );
+        } else {
+          await sendMessage(chatId,
+            "⚠️ We matched your transfer but couldn't complete the credit. Please contact customer service and mention narration <code>" + depRow.narration + "</code>."
+          );
+        }
+      } else {
+        const attempts = (session.attempts || 0) + 1;
+        if (attempts >= MAX_ATTEMPTS) {
+          await clearSession(chatId);
+          await sendMessage(chatId, "❌ Too many incorrect attempts. Please send your narration code again to restart, or contact customer service.");
+        } else {
+          await setSession(chatId, { state: "awaiting_amount", narration: session.narration, alert_id: session.alert_id, deposit_id: session.deposit_id, attempts });
+          await sendMessage(chatId, "That amount doesn't match what we received. Please check and try again, or send /cancel to start over.");
+        }
+      }
+      return res.status(200).json({ ok: true });
+    }
+
+    await sendMessage(chatId,
+      "🤔 I couldn't find a pending deposit matching that.\n\n" +
+      "Send me your narration code from the Recharge page (e.g. <code>VTLA1B2C3D4E5F</code>), or /start for help."
+    );
     return res.status(200).json({ ok: true });
   }
 
