@@ -71,6 +71,28 @@
     }
     .status-active { background: #D1FAE5; color: #065F46; }
     .status-inactive { background: var(--bg); color: var(--muted); }
+
+    .deposits-card {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); margin: 0 16px 16px; overflow: hidden;
+    }
+    .dc-header {
+      background: linear-gradient(135deg, var(--purple) 0%, var(--sky) 100%);
+      padding: 16px; color: #fff;
+    }
+    .dc-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .8; }
+    .dc-amount { font-size: 28px; font-weight: 800; margin-top: 4px; }
+    .dc-sub { font-size: 12px; opacity: .8; margin-top: 4px; }
+    .dc-breakdown { display: grid; grid-template-columns: repeat(3,1fr); }
+    .dc-item { padding: 12px 8px; text-align: center; border-right: 1px solid var(--border); }
+    .dc-item:last-child { border-right: none; }
+    .dc-item-val { font-size: 14px; font-weight: 800; color: var(--purple); }
+    .dc-item-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: .04em; }
+    .dc-salary-note {
+      padding: 10px 16px; font-size: 11px; color: var(--muted);
+      background: var(--bg); text-align: center; line-height: 1.5;
+    }
+    .dc-salary-note strong { color: var(--purple); }
   </style>
 </head>
 <body data-supabase-url="YOUR_SUPABASE_URL" data-supabase-anon="YOUR_SUPABASE_ANON_KEY">
@@ -131,6 +153,32 @@
         <div class="stat-val" id="refEarnings">₦0</div>
         <div class="stat-lbl">Earned</div>
       </div>
+    </div>
+  </div>
+
+  <!-- Total team deposits -->
+  <div class="deposits-card anim anim-1">
+    <div class="dc-header">
+      <div class="dc-label">Total Team Deposits</div>
+      <div class="dc-amount" id="teamDepositsTotal">₦0</div>
+      <div class="dc-sub">Combined deposits from your entire downline</div>
+    </div>
+    <div class="dc-breakdown">
+      <div class="dc-item">
+        <div class="dc-item-val" id="l1Deposits">₦0</div>
+        <div class="dc-item-lbl">Level 1</div>
+      </div>
+      <div class="dc-item">
+        <div class="dc-item-val" id="l2Deposits">₦0</div>
+        <div class="dc-item-lbl">Level 2</div>
+      </div>
+      <div class="dc-item">
+        <div class="dc-item-val" id="l3Deposits">₦0</div>
+        <div class="dc-item-lbl">Level 3</div>
+      </div>
+    </div>
+    <div class="dc-salary-note">
+      💰 Your monthly salary is <strong>5%</strong> of this total — currently <strong id="salaryEstimate">₦0</strong>. <a href="monthly-salary.html" style="color:var(--purple);font-weight:700">Claim on the 5th →</a>
     </div>
   </div>
 
@@ -199,6 +247,14 @@
       document.getElementById("activeRefs").textContent  = "("+activeCount+" active investors)";
       document.getElementById("refEarnings").textContent = "₦"+(d.earned||0).toLocaleString();
 
+      // Total team deposits + per-level breakdown + salary estimate
+      var teamDeposits = d.total_team_deposits || 0;
+      document.getElementById("teamDepositsTotal").textContent = "₦"+teamDeposits.toLocaleString();
+      document.getElementById("l1Deposits").textContent = "₦"+(d.l1_deposits||0).toLocaleString();
+      document.getElementById("l2Deposits").textContent = "₦"+(d.l2_deposits||0).toLocaleString();
+      document.getElementById("l3Deposits").textContent = "₦"+(d.l3_deposits||0).toLocaleString();
+      document.getElementById("salaryEstimate").textContent = "₦"+Math.round(teamDeposits*0.05).toLocaleString();
+
       // VIP tier highlights — show how close user is
       var thresholds = {1:3, 2:5, 3:10, 4:25};
       [1,2,3,4].forEach(function(n){
@@ -215,6 +271,11 @@
       console.error("Team load error:", e);
       document.getElementById("totalTeam").textContent="—";
       document.getElementById("activeTeam").textContent="—";
+      document.getElementById("teamDepositsTotal").textContent="—";
+      document.getElementById("l1Deposits").textContent="—";
+      document.getElementById("l2Deposits").textContent="—";
+      document.getElementById("l3Deposits").textContent="—";
+      document.getElementById("salaryEstimate").textContent="—";
     }
 
     renderLevel(1);
@@ -263,5 +324,4 @@
 })();
 </script>
 </body>
-  </html>
-  
+</html>
