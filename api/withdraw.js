@@ -19,6 +19,15 @@ module.exports = async function(req, res) {
     return res.json({ ok:true, locked: data?.value === "true" });
   }
 
+  // Public limits check — lets the withdraw page show/validate against
+  // the admin's currently configured min/max before submitting.
+  if(req.method==="GET" && req.query.action==="limits") {
+    const { data } = await supabase.from("site_settings").select("key,value").in("key",["min_withdraw","max_withdraw"]);
+    const min = Number(data?.find(s=>s.key==="min_withdraw")?.value || 1000);
+    const max = Number(data?.find(s=>s.key==="max_withdraw")?.value || 0);
+    return res.json({ ok:true, min, max });
+  }
+
   const user_id = req.method==="GET" ? req.query.user_id : req.body?.user_id;
   if(!user_id) return res.status(400).json({ error:"user_id required" });
 
@@ -40,7 +49,14 @@ module.exports = async function(req, res) {
   const { amount, bank_name, account_number, account_name } = req.body;
   if(!amount||!bank_name||!account_number||!account_name) return res.status(400).json({ error:"All fields required" });
   const num = Number(amount);
-  if(num < 1000) return res.status(400).json({ error:"Minimum withdrawal is ₦1,000" });
+
+  // Dynamic min/max — admin-configurable, no longer hardcoded.
+  const { data:limitSettings } = await supabase.from("site_settings").select("key,value").in("key",["min_withdraw","max_withdraw"]);
+  const minW = Number(limitSettings?.find(s=>s.key==="min_withdraw")?.value || 1000);
+  const maxW = Number(limitSettings?.find(s=>s.key==="max_withdraw")?.value || 0);
+
+  if(num < minW) return res.json({ ok:false, error:`Minimum withdrawal is ₦${minW.toLocaleString()}` });
+  if(maxW > 0 && num > maxW) return res.json({ ok:false, error:`Maximum withdrawal is ₦${maxW.toLocaleString()}` });
 
   // Check balance
   const { data:w } = await supabase.from("wallets").select("balance").eq("user_id",user_id).single();
