@@ -28,7 +28,7 @@
   <div class="bal-card">
     <div class="bal-label">Available Balance</div>
     <div class="bal-amount" id="balance">₦0.00</div>
-    <div class="min-note">Minimum withdrawal: ₦1,000</div>
+    <div class="min-note" id="limitsNote">Loading limits…</div>
   </div>
 
   <div class="section">
@@ -78,6 +78,7 @@
 <script>
 (function(){
   var uid="", balance=0, selectedCard=null, showManual=false;
+  var minW=1000, maxW=0; // maxW=0 means no maximum enforced
   function waitSb(cb){if(window.sb&&window.VitelAuth){cb();return;}var t=setInterval(function(){if(window.sb&&window.VitelAuth){clearInterval(t);cb();}},50);}
 
   waitSb(async function(){
@@ -94,6 +95,18 @@
         document.getElementById("withdrawBtn").textContent="Withdrawals Paused";
       }
     }catch(e){ console.warn("lock-status check failed",e); }
+
+    // Load current min/max limits
+    try{
+      var limRes = await fetch("/api/withdraw?action=limits");
+      var limData = await limRes.json();
+      minW = limData.min||1000;
+      maxW = limData.max||0;
+      document.getElementById("limitsNote").textContent =
+        maxW > 0
+          ? "Min: ₦"+minW.toLocaleString()+" · Max: ₦"+maxW.toLocaleString()
+          : "Minimum withdrawal: ₦"+minW.toLocaleString();
+    }catch(e){ console.warn("limits check failed",e); }
 
     var {data:w}=await window.sb.from("wallets").select("balance").eq("user_id",uid).single();
     balance=w?.balance||0;
@@ -144,7 +157,8 @@
     var amt=Number(document.getElementById("amount").value);
     al.className="alert";
 
-    if(!amt||amt<1000){ al.textContent="Minimum withdrawal is ₦1,000"; al.className="alert alert-error show"; return; }
+    if(!amt||amt<minW){ al.textContent="Minimum withdrawal is ₦"+minW.toLocaleString(); al.className="alert alert-error show"; return; }
+    if(maxW>0 && amt>maxW){ al.textContent="Maximum withdrawal is ₦"+maxW.toLocaleString(); al.className="alert alert-error show"; return; }
     if(amt>balance){ al.textContent="Insufficient balance"; al.className="alert alert-error show"; return; }
 
     var bank=selectedCard?.bank_name||document.getElementById("bankName")?.value?.trim();
