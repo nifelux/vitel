@@ -332,6 +332,22 @@
         <div style="margin-top:10px;font-size:11px;color:#64748B;line-height:1.5">
           When locked, users can't submit new withdrawal requests (they'll see a paused message). Pending requests already submitted are unaffected — you can still approve or reject them as normal.
         </div>
+
+        <div style="height:1px;background:#334155;margin:16px 0"></div>
+
+        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px">Withdrawal Limits</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:11px;font-weight:600;color:#94A3B8;margin-bottom:5px;display:block">Minimum (₦)</label>
+            <input id="minWithdrawInput" type="number" placeholder="1000" style="width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid #334155;background:#0F172A;color:#fff;font-size:13px"/>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:600;color:#94A3B8;margin-bottom:5px;display:block">Maximum (₦)</label>
+            <input id="maxWithdrawInput" type="number" placeholder="0 = no limit" style="width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid #334155;background:#0F172A;color:#fff;font-size:13px"/>
+          </div>
+        </div>
+        <button onclick="saveWithdrawalLimits()" style="width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--purple),var(--sky));color:#fff;font-weight:700;font-size:13px;cursor:pointer">Save Limits</button>
+        <div id="limitsAlert" class="alert" style="margin-top:10px"></div>
       </div>
     </div>
 
@@ -360,6 +376,39 @@
 
 </div><!-- end admin-main -->
 
+<!-- Wallet Edit Modal -->
+<div id="walletModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;align-items:flex-end;justify-content:center">
+  <div style="background:#1E293B;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:480px;border:1px solid #334155;border-bottom:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:#fff">Edit Wallet</div>
+      <button onclick="closeWalletModal()" style="background:rgba(255,255,255,.06);border:none;border-radius:50%;width:30px;height:30px;color:#94A3B8;font-size:16px;cursor:pointer">✕</button>
+    </div>
+    <div style="font-size:13px;color:#64748B;margin-bottom:16px" id="walletModalUser">—</div>
+
+    <div style="background:#0F172A;border-radius:10px;padding:14px;margin-bottom:16px;text-align:center">
+      <div style="font-size:11px;color:#64748B;text-transform:uppercase;letter-spacing:.05em">Current Balance</div>
+      <div style="font-size:24px;font-weight:800;color:#34D399;margin-top:4px" id="walletModalBalance">₦0</div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button id="walletTypeCredit" onclick="setWalletType('credit')" style="flex:1;padding:11px;border-radius:10px;border:2px solid #334155;background:transparent;color:#94A3B8;font-weight:700;font-size:13px;cursor:pointer;transition:all .15s">➕ Credit</button>
+      <button id="walletTypeDebit" onclick="setWalletType('debit')" style="flex:1;padding:11px;border-radius:10px;border:2px solid #334155;background:transparent;color:#94A3B8;font-weight:700;font-size:13px;cursor:pointer;transition:all .15s">➖ Debit</button>
+    </div>
+
+    <div class="a-field">
+      <label class="a-label">Amount (₦)</label>
+      <input class="a-input" id="walletAmountInput" type="number" placeholder="0"/>
+    </div>
+    <div class="a-field">
+      <label class="a-label">Reason <span style="color:#64748B;font-weight:400">(sent to the user)</span></label>
+      <input class="a-input" id="walletReasonInput" placeholder="e.g. Manual correction for delayed deposit"/>
+    </div>
+
+    <button onclick="submitWalletAdjust()" id="walletSubmitBtn" style="width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--purple),var(--sky));color:#fff;font-weight:700;font-size:15px;cursor:pointer">Apply Adjustment</button>
+    <div id="walletModalAlert" class="alert" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
@@ -379,6 +428,7 @@
     await loadUnmatchedAlerts();
     await loadMethod();
     await loadWithdrawalLock();
+    await loadWithdrawalLimits();
   });
 
   /* ── Page nav ── */
@@ -630,13 +680,16 @@
     var el=document.getElementById("userList");
     if(!users.length){ el.innerHTML='<div style="text-align:center;color:#64748B;padding:24px;font-size:14px">No users found.</div>'; return; }
     el.innerHTML=users.map(function(u){
-      return '<div class="user-row">'+
+      return '<div class="user-row" style="cursor:pointer" onclick="openWalletModal(\''+u.id+'\')">'+
         '<div class="user-avatar">'+(u.full_name||u.email||"?")[0].toUpperCase()+'</div>'+
         '<div style="flex:1">'+
           '<div class="user-name">'+(u.full_name||"—")+(u.is_admin?' <span style="font-size:10px;background:rgba(239,68,68,.15);color:#f87171;padding:2px 6px;border-radius:4px">Admin</span>':'')+' <span style="font-size:10px;color:var(--sky)">VIP '+u.vip_level+'</span></div>'+
           '<div class="user-meta">'+u.email+' · '+new Date(u.created_at).toLocaleDateString()+'</div>'+
         '</div>'+
-        '<div class="user-bal">₦'+Number(u.wallets?.balance||0).toLocaleString()+'</div>'+
+        '<div style="text-align:right">'+
+          '<div class="user-bal">₦'+Number(u.wallets?.balance||0).toLocaleString()+'</div>'+
+          '<div style="font-size:10px;color:#64748B;margin-top:2px">✏️ Tap to edit</div>'+
+        '</div>'+
       '</div>';
     }).join("");
   }
@@ -645,6 +698,68 @@
     if(!q){ renderUsers(allUsers); return; }
     var f=q.toLowerCase();
     renderUsers(allUsers.filter(function(u){return (u.full_name||"").toLowerCase().includes(f)||(u.email||"").toLowerCase().includes(f);}));
+  };
+
+  /* ── Edit Wallet modal ── */
+  var walletTargetUserId="", walletTargetType="credit";
+
+  window.openWalletModal=function(userId){
+    var u = allUsers.find(function(x){ return x.id===userId; });
+    if(!u){ window.VitelAuth.toast("User not found — try refreshing the list"); return; }
+
+    walletTargetUserId = userId;
+    document.getElementById("walletModalUser").textContent = (u.full_name||u.email||"User") + " · " + u.email;
+    document.getElementById("walletModalBalance").textContent = "₦"+Number(u.wallets?.balance||0).toLocaleString();
+    document.getElementById("walletAmountInput").value = "";
+    document.getElementById("walletReasonInput").value = "";
+    document.getElementById("walletModalAlert").className = "alert";
+    document.getElementById("walletSubmitBtn").disabled = false;
+    document.getElementById("walletSubmitBtn").textContent = "Apply Adjustment";
+    setWalletType("credit");
+    document.getElementById("walletModal").style.display = "flex";
+  };
+
+  window.closeWalletModal=function(){
+    document.getElementById("walletModal").style.display = "none";
+  };
+
+  window.setWalletType=function(type){
+    walletTargetType = type;
+    var creditBtn = document.getElementById("walletTypeCredit");
+    var debitBtn  = document.getElementById("walletTypeDebit");
+    if(type==="credit"){
+      creditBtn.style.borderColor="#00c853"; creditBtn.style.color="#34D399"; creditBtn.style.background="rgba(0,200,83,.1)";
+      debitBtn.style.borderColor="#334155";  debitBtn.style.color="#94A3B8";  debitBtn.style.background="transparent";
+    } else {
+      debitBtn.style.borderColor="#ef4444";  debitBtn.style.color="#f87171";  debitBtn.style.background="rgba(239,68,68,.1)";
+      creditBtn.style.borderColor="#334155"; creditBtn.style.color="#94A3B8"; creditBtn.style.background="transparent";
+    }
+  };
+
+  window.submitWalletAdjust=async function(){
+    var amount = document.getElementById("walletAmountInput").value;
+    var reason = document.getElementById("walletReasonInput").value.trim();
+    var al  = document.getElementById("walletModalAlert");
+    var btn = document.getElementById("walletSubmitBtn");
+    al.className = "alert";
+
+    if(!amount || Number(amount)<=0){
+      al.textContent="Enter a valid amount"; al.className="alert alert-error show"; return;
+    }
+
+    btn.disabled=true; btn.textContent="Processing…";
+
+    var r = await fetch("/api/admin?action=adjust-wallet",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target_user_id:walletTargetUserId,amount,type:walletTargetType,reason,admin_id:adminId})});
+    var d = await r.json();
+
+    if(d.ok){
+      window.VitelAuth.toast("✅ Wallet "+(walletTargetType==="credit"?"credited":"debited")+" — new balance ₦"+Number(d.new_balance).toLocaleString());
+      closeWalletModal();
+      loadUsers();
+    } else {
+      al.textContent = d.error||"Error"; al.className="alert alert-error show";
+      btn.disabled=false; btn.textContent="Apply Adjustment";
+    }
   };
 
   /* ── Messages ── */
@@ -943,6 +1058,32 @@
     } else {
       window.VitelAuth.toast("❌ "+d.error);
       applyWithdrawalLockUI();
+    }
+  };
+
+  /* ── Withdrawal limits ── */
+  async function loadWithdrawalLimits(){
+    var r = await fetch("/api/admin?action=withdrawal-limits&admin_id="+adminId);
+    var d = await r.json();
+    if(d.ok){
+      document.getElementById("minWithdrawInput").value = d.min;
+      document.getElementById("maxWithdrawInput").value = d.max;
+    }
+  }
+
+  window.saveWithdrawalLimits=async function(){
+    var min = document.getElementById("minWithdrawInput").value;
+    var max = document.getElementById("maxWithdrawInput").value;
+    var al  = document.getElementById("limitsAlert");
+    al.className = "alert";
+
+    var r = await fetch("/api/admin?action=set-withdrawal-limits",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({min,max,admin_id:adminId})});
+    var d = await r.json();
+    if(d.ok){
+      window.VitelAuth.toast("✅ Withdrawal limits updated!");
+      al.className = "alert";
+    } else {
+      al.textContent = d.error||"Error"; al.className = "alert alert-error show";
     }
   };
 
