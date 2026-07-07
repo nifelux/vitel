@@ -128,6 +128,13 @@ module.exports = async function(req, res) {
       return res.json({ ok:true, locked: data?.value === "true" });
     }
 
+    if(action==="withdrawal-limits") {
+      const { data } = await supabase.from("site_settings").select("key,value").in("key",["min_withdraw","max_withdraw"]);
+      const min = Number(data?.find(s=>s.key==="min_withdraw")?.value || 1000);
+      const max = Number(data?.find(s=>s.key==="max_withdraw")?.value || 0);
+      return res.json({ ok:true, min, max });
+    }
+
     return res.status(400).json({ error:"Unknown action" });
   }
 
@@ -148,6 +155,57 @@ module.exports = async function(req, res) {
       .upsert({ key:"withdrawals_locked", value: locked ? "true" : "false", updated_at:new Date().toISOString() });
     if(error) return res.status(500).json({ error:error.message });
     return res.json({ ok:true, locked: !!locked });
+  }
+
+  if(action==="set-withdrawal-limits") {
+    const { min, max } = req.body;
+    const minNum = Number(min);
+    const maxNum = Number(max);
+    if(isNaN(minNum) || minNum < 0) return res.status(400).json({ error:"Invalid minimum amount" });
+    if(isNaN(maxNum) || maxNum < 0) return res.status(400).json({ error:"Invalid maximum amount" });
+    if(maxNum > 0 && maxNum < minNum) return res.status(400).json({ error:"Maximum must be greater than minimum (or 0 for no maximum)" });
+
+    await supabase.from("site_settings").upsert([
+      { key:"min_withdraw", value:String(minNum), updated_at:new Date().toISOString() },
+      { key:"max_withdraw", value:String(maxNum), updated_at:new Date().toISOString() },
+    ]);
+    return res.json({ ok:true, min:minNum, max:maxNum });
+  }
+
+  if(action==="adjust-wallet") {
+    const { target_user_id, amount, type, reason } = req.body;
+    if(!target_user_id || !amount || !["credit","debit"].includes(type)) {
+      return res.status(400).json({ error:"target_user_id, amount, and type (credit|debit) required" });
+    }
+    const num = Number(amount);
+    if(isNaN(num) || num <= 0) return res.status(400).json({ error:"Invalid amount" });
+
+    const { data:wallet } = await supabase.from("wallets").select("balance").eq("user_id",target_user_id).single();
+    if(!wallet) return res.status(404).json({ error:"Wallet not found for this user" });
+
+    const delta = type==="credit" ? num : -num;
+    const newBalance = Number(wallet.balance) + delta;
+    if(newBalance < 0) {
+      return res.status(400).json({ error:"This would make the balance negative (₦"+newBalance.toLocaleString()+"). Reduce the debit amount." });
+    }
+
+    await supabase.from("wallets").update({ balance:newBalance, updated_at:new Date().toISOString() }).eq("user_id",target_user_id);
+
+    await supabase.from("wallet_transactions").insert({
+      user_id: target_user_id,
+      type: type==="credit" ? "admin_credit" : "admin_debit",
+      amount: type==="credit" ? num : -num,
+      description: "Admin adjustment" + (reason ? ": "+reason : "") ,
+    });
+
+    // Let the user see why their balance changed
+    await supabase.from("messages").insert({
+      user_id: target_user_id, sender_id: null,
+      title: type==="credit" ? "Wallet Credited" : "Wallet Adjusted",
+      content: `Your wallet was ${type==="credit"?"credited":"debited"} ₦${num.toLocaleString()} by an admin.` + (reason ? ` Reason: ${reason}` : ""),
+    });
+
+    return res.json({ ok:true, new_balance:newBalance });
   }
 
   if(action==="process-deposit") {
